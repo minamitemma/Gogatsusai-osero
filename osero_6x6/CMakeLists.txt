@@ -11,10 +11,20 @@ endif()
 add_executable(reversi6
     main.cpp
     board.cpp
+    config/app_config.cpp
     evaluator.cpp
+    hint/hint_formatter.cpp
+    hint/gemini_client.cpp
+    hint/llm_hint_engine.cpp
+    hint/local_hint_engine.cpp
+    hint/minmax_hint_evaluator.cpp
+    hint/prompt_builder.cpp
     option_parser.cpp
     player/human_player.cpp
     player/sample_computer_player.cpp
-    player/minmax_player.cpp)
+    player/minmax_player.cpp
+    review/review_formatter.cpp
+    review/game_reviewer.cpp
+    review/review_prompt_builder.cpp)
 
 target_include_directories(reversi6 PRIVATE .)

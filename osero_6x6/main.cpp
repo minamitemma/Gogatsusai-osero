@@ -9,12 +9,16 @@
 #include <utility>
 
 #include "board.hpp"
+#include "config/app_config.hpp"
 #include "evaluator.hpp"
 #include "option_parser.hpp"
 #include "player.hpp"
 #include "player/human_player.hpp"
 #include "player/minmax_player.hpp"
 #include "player/sample_computer_player.hpp"
+#include "review/game_record.hpp"
+#include "review/game_reviewer.hpp"
+#include "review/review_formatter.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -32,7 +36,23 @@ int main(int argc, char* argv[])
 	players.at(static_cast<std::size_t>(Side::BLACK)) = std::move(command_line_params.black_player);
 	players.at(static_cast<std::size_t>(Side::WHITE)) = std::move(command_line_params.white_player);
 
+	constexpr int HUMAN_HINT_COUNT = 3;
+	for (auto& player : players) {
+		auto human_player = dynamic_cast<HumanPlayer*>(player.get());
+		if (human_player != nullptr) {
+			human_player->configureHints(command_line_params.hint_mode, command_line_params.hint_format, HUMAN_HINT_COUNT);
+		}
+	}
+
 	Board board;
+	GameRecord game_record;
+	if (command_line_params.black_player_type == "human") {
+		game_record.has_human_side = true;
+		game_record.human_side = Side::BLACK;
+	} else if (command_line_params.white_player_type == "human") {
+		game_record.has_human_side = true;
+		game_record.human_side = Side::WHITE;
+	}
 
 	int pass = 0;  // 相互パスの判定
 
@@ -52,6 +72,7 @@ int main(int argc, char* argv[])
 	bool has_prev_move = false;
 	Side prev_mover = Side::BLACK;       // 初期値はダミー
 	int prev_black_eval_before_move = 0; // 直前の手を打つ直前の (黒視点) 評価値
+	int turn_number = 1;
 
 	for (Side turn = Side::BLACK;; turn = getOpponentSide(turn)) {
 		std::cout << board << "\n"
@@ -75,6 +96,17 @@ int main(int argc, char* argv[])
 		auto legal_moves = board.getAllLegalMoves(turn);
 		if (legal_moves.empty()) {
 			pass++;
+			const int black_eval = evaluate(board, Side::BLACK);
+			game_record.moves.push_back({turn_number,
+			                             turn,
+			                             true,
+			                             {-1, -1},
+			                             black_eval,
+			                             black_eval,
+			                             0,
+			                             board.count(CellState::BLACK),
+			                             board.count(CellState::WHITE)});
+			++turn_number;
 			if (pass >= 2) {
 				std::printf("両者パスしたのでこの試合は終了です。\n");
 				break;
@@ -87,6 +119,7 @@ int main(int argc, char* argv[])
 
 		auto& turn_player = *players.at(static_cast<std::size_t>(turn));
 
+		const int black_eval_before_move = evaluate(board, Side::BLACK);
 		auto move = turn_player.thinkNextMove(board);
 		if (!board.isLegalMove(move, turn)) {
 			std::cout << "turn = " << turn << ", illegal move = " << move << std::endl;
@@ -96,11 +129,24 @@ int main(int argc, char* argv[])
 		          << std::endl;
 
 		// 着手直前の状態を記録 → 次ループ冒頭で差分表示
-		prev_black_eval_before_move = evaluate(board, Side::BLACK);
+		prev_black_eval_before_move = black_eval_before_move;
 		prev_mover = turn;
 		has_prev_move = true;
 
 		board.placeDisk(move, turn);
+		const int black_eval_after_move = evaluate(board, Side::BLACK);
+		const int delta_black = black_eval_after_move - black_eval_before_move;
+		const int delta_for_mover = (turn == Side::BLACK) ? delta_black : -delta_black;
+		game_record.moves.push_back({turn_number,
+		                             turn,
+		                             false,
+		                             move,
+		                             black_eval_before_move,
+		                             black_eval_after_move,
+		                             delta_for_mover,
+		                             board.count(CellState::BLACK),
+		                             board.count(CellState::WHITE)});
+		++turn_number;
 		pass = 0;  // 2連パス以外は通さない
 	}
 
@@ -122,6 +168,8 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+	game_record.final_black_count = count_b;
+	game_record.final_white_count = count_w;
 	std::printf("白が %d 個、黒が %d 個なので", count_w, count_b);
 	if (count_b > count_w) {
 		std::printf("黒の勝ちです。");
@@ -131,6 +179,33 @@ int main(int argc, char* argv[])
 		std::printf("引き分けです。");
 	}
 	std::printf("\n");
+
+	if (command_line_params.review_mode != ReviewMode::NONE) {
+		GameReviewer reviewer;
+		try {
+			std::string review_summary;
+			if (command_line_params.review_mode == ReviewMode::LLM) {
+				GeminiClient gemini_client(getGeminiApiKey(), getGeminiModelName());
+				review_summary = reviewer.buildLlmReview(game_record, gemini_client);
+			} else {
+				review_summary = reviewer.buildLocalReview(game_record);
+			}
+
+			if (command_line_params.review_format == HintFormat::JSON) {
+				std::cout << "\n[game review]\n";
+				std::cout << formatReviewJson(game_record, review_summary) << std::endl;
+			} else {
+				if (command_line_params.review_mode == ReviewMode::LLM) {
+					std::cout << "\n[game review]\n";
+					std::cout << review_summary << std::endl;
+				} else {
+					std::cout << "\n" << review_summary << std::endl;
+				}
+			}
+		} catch (const std::exception& ex) {
+			std::cout << "\nReview failed: " << ex.what() << std::endl;
+		}
+	}
 
 	return 0;
 }
