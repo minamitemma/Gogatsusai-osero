@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "board.hpp"
+#include "evaluator.hpp"
 #include "option_parser.hpp"
 #include "player.hpp"
 #include "player/human_player.hpp"
@@ -35,9 +36,37 @@ int main(int argc, char* argv[])
 
 	int pass = 0;  // 相互パスの判定
 
+	auto signed_str = [](int v) {
+		return (v > 0 ? std::string("+") : std::string("")) + std::to_string(v);
+	};
+
+	auto printPosition = [&](const Board& b) {
+		int black_eval = evaluate(b, Side::BLACK);
+		std::cout << "形勢: 黒視点 " << signed_str(black_eval)
+		          << " / 白視点 " << signed_str(-black_eval)
+		          << "  [盤上: 黒 " << b.count(CellState::BLACK)
+		          << ", 白 " << b.count(CellState::WHITE) << "]"
+		          << std::endl;
+	};
+
+	bool has_prev_move = false;
+	Side prev_mover = Side::BLACK;       // 初期値はダミー
+	int prev_black_eval_before_move = 0; // 直前の手を打つ直前の (黒視点) 評価値
+
 	for (Side turn = Side::BLACK;; turn = getOpponentSide(turn)) {
 		std::cout << board << "\n"
 		          << std::endl;
+
+		// 直前の手で どれだけ動いたか
+		if (has_prev_move) {
+			int cur_black_eval = evaluate(board, Side::BLACK);
+			int delta_black = cur_black_eval - prev_black_eval_before_move;
+			int delta_for_mover = (prev_mover == Side::BLACK) ? delta_black : -delta_black;
+			std::cout << "└ 直前手 (" << prev_mover << ") の評価変化: "
+			          << prev_mover << "側 " << signed_str(delta_for_mover) << std::endl;
+		}
+		printPosition(board);
+		std::cout << std::endl;
 
 		if (board.count(CellState::EMPTY) == 0) {
 			// 盤面が埋まったので終了
@@ -52,6 +81,7 @@ int main(int argc, char* argv[])
 			}
 			std::cout << "turn = " << turn << ", move = Pass\n"
 			          << std::endl;
+			has_prev_move = false;  // パスは差分の起点にしない
 			continue;
 		}
 
@@ -64,6 +94,11 @@ int main(int argc, char* argv[])
 		}
 		std::cout << "turn = " << turn << ", move = " << move << "\n"
 		          << std::endl;
+
+		// 着手直前の状態を記録 → 次ループ冒頭で差分表示
+		prev_black_eval_before_move = evaluate(board, Side::BLACK);
+		prev_mover = turn;
+		has_prev_move = true;
 
 		board.placeDisk(move, turn);
 		pass = 0;  // 2連パス以外は通さない

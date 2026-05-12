@@ -1,11 +1,11 @@
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <vector>
 
+#include "evaluator.hpp"
 #include "minmax_player.hpp"
 
 namespace reversi
@@ -13,33 +13,6 @@ namespace reversi
 
 namespace
 {
-
-// 6x6 用の位置重み付け表
-//   行(y) ↓  列(x) →
-//      a    b    c    d    e    f
-// 1  100  -20   10   10  -20  100
-// 2  -20  -50   -2   -2  -50  -20
-// 3   10   -2    1    1   -2   10
-// 4   10   -2    1    1   -2   10
-// 5  -20  -50   -2   -2  -50  -20
-// 6  100  -20   10   10  -20  100
-constexpr std::array<std::array<int, 6>, 6> POSITION_WEIGHT = {{
-    {{100, -20,  10,  10, -20, 100}},
-    {{-20, -50,  -2,  -2, -50, -20}},
-    {{ 10,  -2,   1,   1,  -2,  10}},
-    {{ 10,  -2,   1,   1,  -2,  10}},
-    {{-20, -50,  -2,  -2, -50, -20}},
-    {{100, -20,  10,  10, -20, 100}},
-}};
-
-// 着手可能数の重み
-constexpr int MOBILITY_WEIGHT = 8;
-
-// 終盤に切り替える残り空きマス数のしきい値
-constexpr int ENDGAME_EMPTY_THRESHOLD = 10;
-
-// 終盤の石差にかける倍率
-constexpr int ENDGAME_STONE_WEIGHT = 1000;
 
 // 勝敗確定時の評価値(中盤評価より十分大きく取る)
 constexpr int WIN_SCORE = 1000000;
@@ -50,50 +23,6 @@ class TimeoutException : public std::exception
 };
 
 using Clock = std::chrono::steady_clock;
-
-int positionScore(const Board& board, Side side)
-{
-	const CellState own = getOwnState(side);
-	const CellState opp = getOwnState(getOpponentSide(side));
-	int score = 0;
-	for (int y = 0; y < Board::HEIGHT; ++y) {
-		for (int x = 0; x < Board::WIDTH; ++x) {
-			CellState s = board.get({x, y});
-			if (s == own) {
-				score += POSITION_WEIGHT[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)];
-			} else if (s == opp) {
-				score -= POSITION_WEIGHT[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)];
-			}
-		}
-	}
-	return score;
-}
-
-// 自分視点の評価値
-int evaluate(const Board& board, Side side)
-{
-	const int empty = board.count(CellState::EMPTY);
-	const int own_count = board.count(getOwnState(side));
-	const int opp_count = board.count(getOwnState(getOpponentSide(side)));
-
-	if (empty == 0) {
-		// 盤面が埋まった: 石差で勝敗確定
-		if (own_count > opp_count) return WIN_SCORE + (own_count - opp_count);
-		if (own_count < opp_count) return -WIN_SCORE + (own_count - opp_count);
-		return 0;
-	}
-
-	if (empty <= ENDGAME_EMPTY_THRESHOLD) {
-		// 終盤: 石差を最優先
-		return ENDGAME_STONE_WEIGHT * (own_count - opp_count);
-	}
-
-	// 中盤まで: 位置重み + 着手可能数
-	int pos = positionScore(board, side);
-	int own_mobility = static_cast<int>(board.getAllLegalMoves(side).size());
-	int opp_mobility = static_cast<int>(board.getAllLegalMoves(getOpponentSide(side)).size());
-	return pos + MOBILITY_WEIGHT * (own_mobility - opp_mobility);
-}
 
 // 手の並べ替え用: 位置重みが大きい順に試す(α-β枝刈り効率化)
 void orderMoves(std::vector<CellPosition>& moves, CellPosition prev_best)
@@ -107,9 +36,7 @@ void orderMoves(std::vector<CellPosition>& moves, CellPosition prev_best)
 	}
 	std::stable_sort(moves.begin() + (Board::boundsCheck(prev_best) ? 1 : 0), moves.end(),
 	                 [](CellPosition a, CellPosition b) {
-		                 int wa = POSITION_WEIGHT[static_cast<std::size_t>(a.y)][static_cast<std::size_t>(a.x)];
-		                 int wb = POSITION_WEIGHT[static_cast<std::size_t>(b.y)][static_cast<std::size_t>(b.x)];
-		                 return wa > wb;
+		                 return positionWeight(a.x, a.y) > positionWeight(b.x, b.y);
 	                 });
 }
 

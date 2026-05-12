@@ -11,6 +11,7 @@ endif()
 add_executable(reversi6
     main.cpp
     board.cpp
+    evaluator.cpp
     option_parser.cpp
     player/human_player.cpp
     player/sample_computer_player.cpp

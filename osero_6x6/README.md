@@ -44,14 +44,33 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug
 osero_6x6/
 ├── CMakeLists.txt
 ├── board.hpp / board.cpp        … 6x6 盤面・合法手・反転処理
+├── evaluator.hpp / .cpp         … 盤面評価関数 (位置重み + 機動力 + 終盤石差)
 ├── player.hpp                   … プレイヤー抽象基底クラス
 ├── option_parser.hpp / .cpp     … コマンドライン引数
-├── main.cpp                     … ゲームループ
+├── main.cpp                     … ゲームループ + 形勢表示
 └── player/
     ├── human_player.hpp / .cpp        … 標準入力プレイヤー
     ├── sample_computer_player.hpp/cpp … 弱いサンプル AI
     └── minmax_player.hpp / .cpp       … min-max AI
 ```
+
+## 表示の見方
+
+各ターンで以下が出る:
+
+```
+[盤面表示]
+
+└ 直前手 (white) の評価変化: white側 -8       ← 打った側にとって即時に何点動いたか
+形勢: 黒視点 +8 / 白視点 -8  [盤上: 黒 3, 白 3]  ← 現在の評価値 (両視点)
+
+(minmax: depth=13, score=24)                  ← AI の予測値 (AI 視点、N手先読み)
+turn = white, move = b4
+```
+
+- **形勢**: 評価関数による現在の盤面評価。プラスなら表記の側が有利
+- **直前手の評価変化**: 自分の手で即時にどれだけ動いたか。長期的読みは反映されない
+- **(minmax: ...)**: AI が読み切った先の予測値。即時形勢とずれることがある (短期譲歩で長期勝ち)
 
 ## min-max AI の方針
 
