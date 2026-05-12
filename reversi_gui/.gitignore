@@ -1,0 +1,35 @@
+# Build directories
+build/
+cmake-build-debug/
+cmake-build-release/
+Debug/
+Release/
+
+# Qt related
+moc_*.cpp
+*.moc
+*.qm
+qrc_*.cpp
+
+# IDE files
+.vscode/
+.idea/
+*.pro.user
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Executables
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+
+# Dependencies
+**/node_modules/
+vcpkg_installed/
