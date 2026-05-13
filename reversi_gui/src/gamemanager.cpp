@@ -27,6 +27,22 @@ void GameManager::initializeGame()
 
 void GameManager::makeMove(int row, int col)
 {
+    // Handle pass move (when no valid moves available or time runs out)
+    if (row == -1 && col == -1) {
+        // Pass - just switch player
+        switchPlayer();
+        currentState.validMoves = getValidMoves(currentState.currentPlayer);
+        
+        // Check if next player also has no valid moves
+        if (currentState.validMoves.empty()) {
+            // Game over
+            currentState.gameOver = true;
+        }
+        
+        emit gameStateChanged(currentState);
+        return;
+    }
+    
     if (!isValidMove(row, col, currentState.currentPlayer)) {
         emit moveError("Invalid move!");
         return;
