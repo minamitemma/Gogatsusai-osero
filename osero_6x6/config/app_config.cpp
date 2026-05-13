@@ -1,0 +1,28 @@
+#include "config/app_config.hpp"
+
+#include <cstdlib>
+#include <stdexcept>
+#include <string>
+
+namespace reversi
+{
+
+std::string getGeminiApiKey()
+{
+	const char* value = std::getenv("GEMINI_API_KEY");
+	if (value == nullptr || std::string(value).empty()) {
+		throw std::runtime_error("GEMINI_API_KEY is not set.");
+	}
+	return value;
+}
+
+std::string getGeminiModelName()
+{
+	const char* value = std::getenv("GEMINI_MODEL");
+	if (value == nullptr || std::string(value).empty()) {
+		return "gemini-3-flash-preview";
+	}
+	return value;
+}
+
+}  // namespace reversi
