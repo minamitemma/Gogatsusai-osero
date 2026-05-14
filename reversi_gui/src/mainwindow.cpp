@@ -535,7 +535,7 @@ void MainWindow::updateGameInfo()
     blackCountLabel->setText(QString("Black: %1").arg(state.blackCount));
     whiteCountLabel->setText(QString("White: %1").arg(state.whiteCount));
     
-    // Update avatar based on evaluation (simplified)
+    // Update avatar based on the same evaluator used by the min-max engine.
     if (state.gameOver) {
         if (state.blackCount > state.whiteCount) {
             avatarLabel->setText("🏆"); // Black wins
@@ -545,10 +545,10 @@ void MainWindow::updateGameInfo()
             avatarLabel->setText("🤝"); // Draw
         }
     } else {
-        int diff = state.blackCount - state.whiteCount;
-        if (diff > 5) {
+        const int evaluation = hintEngine ? hintEngine->evaluatePosition(state.board, 1) : 0;
+        if (evaluation > 60) {
             avatarLabel->setText("😄"); // Black is winning
-        } else if (diff < -5) {
+        } else if (evaluation < -60) {
             avatarLabel->setText("😢"); // Black is losing
         } else {
             avatarLabel->setText("😊"); // Balanced

@@ -40,6 +40,11 @@ public:
         int player
     );
 
+    int evaluatePosition(
+        const std::vector<std::vector<int>> &board,
+        int player
+    ) const;
+
     void initialize() override;
     void shutdown() override;
 

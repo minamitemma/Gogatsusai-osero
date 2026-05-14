@@ -3,6 +3,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "evaluator.hpp"
 #include "hint/hint_formatter.hpp"
 #include "hint/local_hint_engine.hpp"
 
@@ -66,6 +67,14 @@ MinmaxHintDisplay MinmaxEngine::getHint(
         text,
         QString::fromStdString(reversi::formatHintJson(hint, side))
     };
+}
+
+int MinmaxEngine::evaluatePosition(
+    const std::vector<std::vector<int>> &board,
+    int player
+) const
+{
+    return reversi::evaluate(convertBoard(board), convertSide(player));
 }
 
 reversi::Board MinmaxEngine::convertBoard(const std::vector<std::vector<int>> &board) const
