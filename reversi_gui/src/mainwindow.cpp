@@ -275,7 +275,7 @@ void MainWindow::onHintButtonClicked()
         hintLoadingDots = 0;
         stopTimer();
         hintTextDisplay->setHtml("<div style='font-weight: 900; color: #1f5f49;'>ちょっと待ってね・</div>");
-        statusLabel->setText("Gemini にヒントを問い合わせています。");
+        statusLabel->setText("Agentの回答を待っています。");
         hintLoadingTimer->start();
 
         const auto board = state.board;
@@ -363,7 +363,7 @@ void MainWindow::showHintError(const QString &message)
         QString("<div style='color: #b9442f; font-weight: 800;'>ヒントを作れませんでした</div>"
                 "<div>%1</div>").arg(message.toHtmlEscaped())
     );
-    statusLabel->setText("Gemini hint failed. Check GEMINI_API_KEY.");
+    statusLabel->setText("Agentの回答を取得できませんでした。GEMINI_API_KEYを確認してください。");
 }
 
 void MainWindow::onGameStateChanged(const GameState &state)
