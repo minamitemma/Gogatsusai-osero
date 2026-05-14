@@ -52,15 +52,56 @@ MinmaxHintDisplay MinmaxEngine::getHint(
     const reversi::Side side = convertSide(player);
     const reversi::HintResult hint = engine.getHint(convertBoard(board), side);
 
+    const QString bestMove = formatMove(hint.best_move);
+    const QString scoreColor = hint.evaluation_score >= 0 ? "#1f7a4d" : "#b9442f";
+
     QString text;
-    text += QString("おすすめ手: %1\n").arg(formatMove(hint.best_move));
-    text += QString("形勢評価: %1\n").arg(hint.evaluation_score);
-    text += QString("探索深さ: %1\n").arg(hint.search_depth);
-    text += "候補手:\n";
+    text += "<div style='font-family: sans-serif; color: #26322d;'>";
+    text += "<div style='font-size: 13px; font-weight: 700; color: #1f5f49;'>MIN-MAX HINT</div>";
+    text += QString(
+                "<div style='margin: 6px 0 10px 0;'>"
+                "<span style='font-size: 18px; font-weight: 800;'>おすすめ手</span> "
+                "<span style='font-size: 30px; font-weight: 900; color: #a46a16;'>%1</span>"
+                "</div>"
+            ).arg(bestMove);
+    text += QString(
+                "<table cellspacing='0' cellpadding='6' style='margin-bottom: 10px;'>"
+                "<tr>"
+                "<td style='font-weight: 800; color: #4b5a51;'>形勢評価</td>"
+                "<td style='font-size: 18px; font-weight: 900; color: %1;'>%2</td>"
+                "<td style='width: 18px;'></td>"
+                "<td style='font-weight: 800; color: #4b5a51;'>探索深さ</td>"
+                "<td style='font-size: 18px; font-weight: 900;'>%3</td>"
+                "</tr>"
+                "</table>"
+            ).arg(scoreColor).arg(hint.evaluation_score).arg(hint.search_depth);
+
+    text += "<div style='font-weight: 800; margin: 6px 0;'>候補手ランキング</div>";
+    text += "<table cellspacing='0' cellpadding='6' style='border-collapse: collapse; width: 100%;'>";
+    text += "<tr style='background: #e8f3eb; color: #1f5f49; font-weight: 800;'>"
+            "<th align='left'>順位</th><th align='left'>手</th><th align='right'>score</th></tr>";
+    int rank = 1;
     for (const auto &candidate : hint.candidates) {
-        text += QString("- %1: %2\n").arg(formatMove(candidate.move)).arg(candidate.score);
+        const QString background = (rank % 2 == 0) ? "#fffaf0" : "#ffffff";
+        text += QString(
+                    "<tr style='background: %1;'>"
+                    "<td>%2</td><td style='font-weight: 800;'>%3</td><td align='right'>%4</td>"
+                    "</tr>"
+                )
+                    .arg(background)
+                    .arg(rank)
+                    .arg(formatMove(candidate.move))
+                    .arg(candidate.score);
+        ++rank;
     }
-    text += QString("解説: %1").arg(QString::fromStdString(hint.explanation));
+    text += "</table>";
+
+    text += QString(
+                "<div style='margin-top: 10px; padding: 8px; background: #fff4cf; border-radius: 6px;'>"
+                "<b>解説:</b> %1"
+                "</div>"
+            ).arg(QString::fromStdString(hint.explanation).toHtmlEscaped());
+    text += "</div>";
 
     return {
         {hint.best_move.y, hint.best_move.x},

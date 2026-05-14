@@ -9,6 +9,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRandomGenerator>
+#include <QSizePolicy>
 #include <QStandardPaths>
 #include <QTextStream>
 #include <QTimer>
@@ -58,44 +59,49 @@ void MainWindow::setupUI()
 {
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
-    mainLayout->setContentsMargins(18, 18, 18, 18);
-    mainLayout->setSpacing(14);
+    mainLayout->setContentsMargins(22, 18, 22, 22);
+    mainLayout->setSpacing(12);
 
     centralWidget->setStyleSheet(
-        "QWidget { background: #f6efe4; color: #26322d; font-size: 15px; }"
-        "QGroupBox { background: #fffaf0; border: 2px solid #2f7d5c; border-radius: 8px; "
-        "margin-top: 10px; padding: 12px; font-weight: 700; }"
-        "QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; }"
-        "QPushButton { background: #ffcb45; border: 2px solid #a46a16; border-radius: 8px; "
-        "padding: 10px 16px; font-weight: 700; }"
-        "QPushButton:hover { background: #ffd86b; }"
-        "QPushButton:disabled { background: #d6d0c4; border-color: #aaa397; color: #706a60; }"
-        "QComboBox { background: #ffffff; border: 2px solid #2f7d5c; border-radius: 8px; padding: 8px; font-weight: 700; }"
-        "QTextEdit { background: #ffffff; border: 2px solid #2f7d5c; border-radius: 8px; padding: 8px; }"
+        "QWidget { background: #f3efe6; color: #26322d; font-size: 15px; }"
+        "QGroupBox { background: #fffdf7; border: 1px solid #d2c8b7; border-radius: 8px; "
+        "margin-top: 12px; padding: 14px; font-weight: 800; }"
+        "QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 7px; color: #1f5f49; }"
+        "QPushButton { background: #f6c64c; border: 1px solid #b77a18; border-radius: 8px; "
+        "padding: 10px 16px; font-weight: 800; color: #26322d; }"
+        "QPushButton:hover { background: #ffd973; }"
+        "QPushButton:pressed { background: #e8b43c; }"
+        "QPushButton:disabled { background: #d8d2c6; border-color: #b9b0a2; color: #746d64; }"
+        "QComboBox { background: #ffffff; border: 1px solid #b8c9bd; border-radius: 8px; "
+        "padding: 8px 12px; font-weight: 800; }"
+        "QTextEdit { background: #ffffff; border: 1px solid #c9d6ce; border-radius: 8px; "
+        "padding: 12px; font-size: 15px; }"
         "QLCDNumber { background: #26322d; color: #ffcb45; border: 3px solid #ffcb45; border-radius: 8px; }"
     );
 
     QLabel *titleLabel = new QLabel("6x6 Reversi Challenge", this);
-    titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet("font-size: 26px; font-weight: 800; color: #1f5f49; background: transparent;");
+    titleLabel->setAlignment(Qt::AlignLeft);
+    titleLabel->setStyleSheet("font-size: 28px; font-weight: 900; color: #1f5f49; background: transparent;");
     mainLayout->addWidget(titleLabel);
     
     // Top: Game Info Section
     QGroupBox *infoGroupBox = new QGroupBox("Game Information", this);
     QHBoxLayout *infoLayout = new QHBoxLayout(infoGroupBox);
+    infoLayout->setSpacing(18);
     
     // Player turn
     currentPlayerLabel = new QLabel("Current Player: Black", this);
-    currentPlayerLabel->setStyleSheet("font-size: 18px; font-weight: 800; background: transparent;");
+    currentPlayerLabel->setStyleSheet("font-size: 20px; font-weight: 900; background: transparent; color: #1b4b39;");
     infoLayout->addWidget(currentPlayerLabel);
     
     // Stone counts
     blackCountLabel = new QLabel("Black: 2", this);
     whiteCountLabel = new QLabel("White: 2", this);
-    blackCountLabel->setStyleSheet("background: transparent;");
-    whiteCountLabel->setStyleSheet("background: transparent;");
+    blackCountLabel->setStyleSheet("background: transparent; font-weight: 800;");
+    whiteCountLabel->setStyleSheet("background: transparent; font-weight: 800;");
     infoLayout->addWidget(blackCountLabel);
     infoLayout->addWidget(whiteCountLabel);
+    infoLayout->addStretch();
     
     // Timer
     timerDisplay = new QLCDNumber(2, this);
@@ -108,15 +114,23 @@ void MainWindow::setupUI()
     infoLayout->addWidget(timerDisplay);
     
     mainLayout->addWidget(infoGroupBox);
+
+    QHBoxLayout *playLayout = new QHBoxLayout();
+    playLayout->setSpacing(16);
+
+    QVBoxLayout *leftLayout = new QVBoxLayout();
+    leftLayout->setSpacing(12);
     
     // Middle: Board Display
     boardWidget = new BoardWidget(this);
-    boardWidget->setMinimumSize(400, 400);
-    mainLayout->addWidget(boardWidget);
+    boardWidget->setMinimumSize(440, 440);
+    boardWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    leftLayout->addWidget(boardWidget, 1);
     
     // Bottom: Control Section
     QGroupBox *controlGroupBox = new QGroupBox("Controls", this);
     QHBoxLayout *controlLayout = new QHBoxLayout(controlGroupBox);
+    controlLayout->setSpacing(10);
     
     // Avatar
     avatarLabel = new QLabel(this);
@@ -152,36 +166,49 @@ void MainWindow::setupUI()
     
     controlLayout->addStretch();
     
-    mainLayout->addWidget(controlGroupBox);
+    leftLayout->addWidget(controlGroupBox);
+    playLayout->addLayout(leftLayout, 3);
+
+    QVBoxLayout *rightLayout = new QVBoxLayout();
+    rightLayout->setSpacing(12);
 
     QGroupBox *hintGroupBox = new QGroupBox("Hint", this);
     QVBoxLayout *hintLayout = new QVBoxLayout(hintGroupBox);
+    hintLayout->setSpacing(10);
 
     statusLabel = new QLabel("You are black. Beat the min-max AI!", this);
-    statusLabel->setStyleSheet("font-weight: 700; color: #1f5f49; background: transparent;");
+    statusLabel->setWordWrap(true);
+    statusLabel->setStyleSheet("font-weight: 900; color: #1f5f49; background: transparent; font-size: 16px;");
     hintLayout->addWidget(statusLabel);
 
     hintTextDisplay = new QTextEdit(this);
     hintTextDisplay->setReadOnly(true);
-    hintTextDisplay->setMinimumHeight(120);
-    hintTextDisplay->setPlainText("ヒントボタンを押すと、min-max のおすすめ手がここに表示されます。");
+    hintTextDisplay->setMinimumHeight(190);
+    hintTextDisplay->setHtml(
+        "<div style='font-size: 16px; color: #4b5a51;'>"
+        "ヒントボタンを押すと、min-max のおすすめ手・評価値・候補手ランキングがここに表示されます。"
+        "</div>"
+    );
     hintLayout->addWidget(hintTextDisplay);
 
-    mainLayout->addWidget(hintGroupBox);
+    rightLayout->addWidget(hintGroupBox, 2);
 
     QGroupBox *rankingGroupBox = new QGroupBox("Ranking", this);
     QVBoxLayout *rankingLayout = new QVBoxLayout(rankingGroupBox);
 
     rankingTextDisplay = new QTextEdit(this);
     rankingTextDisplay->setReadOnly(true);
-    rankingTextDisplay->setMinimumHeight(120);
+    rankingTextDisplay->setMinimumHeight(170);
     rankingLayout->addWidget(rankingTextDisplay);
 
-    mainLayout->addWidget(rankingGroupBox);
+    rightLayout->addWidget(rankingGroupBox, 1);
+    playLayout->addLayout(rightLayout, 2);
+
+    mainLayout->addLayout(playLayout, 1);
     updateRankingDisplay();
     
     setCentralWidget(centralWidget);
-    resize(720, 960);
+    resize(1060, 780);
 }
 
 void MainWindow::startNewGame()
@@ -190,7 +217,11 @@ void MainWindow::startNewGame()
     aiMovePending = false;
     rankingRecorded = false;
     hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
-    hintTextDisplay->setPlainText("ヒントボタンを押すと、min-max のおすすめ手がここに表示されます。");
+    hintTextDisplay->setHtml(
+        "<div style='font-size: 16px; color: #4b5a51;'>"
+        "ヒントボタンを押すと、min-max のおすすめ手・評価値・候補手ランキングがここに表示されます。"
+        "</div>"
+    );
     statusLabel->setText(QString("New game started. You are %1.").arg(playerSideName()));
     stopTimer();
     resetTimer();
@@ -229,7 +260,10 @@ void MainWindow::onHintButtonClicked()
         try {
             hint = hintEngine->getHint(state.board, state.currentPlayer);
         } catch (const std::exception &error) {
-            hintTextDisplay->setPlainText(QString("ヒントを作れませんでした: %1").arg(error.what()));
+            hintTextDisplay->setHtml(
+                QString("<div style='color: #b9442f; font-weight: 800;'>ヒントを作れませんでした</div>"
+                        "<div>%1</div>").arg(QString(error.what()).toHtmlEscaped())
+            );
             return;
         }
 
@@ -247,7 +281,7 @@ void MainWindow::onHintButtonClicked()
                               .arg(playerColor)
                               .arg(hintRow + 1)
                               .arg(hintCol + 1);
-        hintTextDisplay->setPlainText(hint.text);
+        hintTextDisplay->setHtml(hint.text);
         statusLabel->setText(QString("Hint: Row %1, Column %2").arg(hintRow + 1).arg(hintCol + 1));
         
         QString originalText = currentPlayerLabel->text();
