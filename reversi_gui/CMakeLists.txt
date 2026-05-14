@@ -25,8 +25,15 @@ set(PROJECT_SOURCES
     src/gamemanager.cpp
     src/gamemanager.h
     src/aiengine.h
+    src/minmaxengine.cpp
+    src/minmaxengine.h
     src/simplehintengine.cpp
     src/simplehintengine.h
+    ../osero_6x6/board.cpp
+    ../osero_6x6/evaluator.cpp
+    ../osero_6x6/hint/hint_formatter.cpp
+    ../osero_6x6/hint/local_hint_engine.cpp
+    ../osero_6x6/hint/minmax_hint_evaluator.cpp
     resources/resources.qrc
 )
 
@@ -44,4 +51,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # Include paths
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../osero_6x6
 )

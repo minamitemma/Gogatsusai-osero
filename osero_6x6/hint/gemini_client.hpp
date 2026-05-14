@@ -7,6 +7,7 @@ namespace reversi
 
 class GeminiClient
 {
+	
 public:
 	GeminiClient(std::string api_key, std::string model_name = "gemini-3-flash-preview");
 

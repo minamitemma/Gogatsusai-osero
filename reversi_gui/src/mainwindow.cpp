@@ -3,14 +3,17 @@
 #include <QHBoxLayout>
 #include <QWidget>
 #include <QGroupBox>
+#include <QMessageBox>
 #include <QTimer>
+#include <exception>
+#include <iostream>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), hintsRemaining(3), timeRemaining(10), isTimerActive(false), aiMovePending(false)
 {
     setupUI();
     gameManager = new GameManager(this);
-    hintEngine = new SimpleHintEngine();
+    hintEngine = new MinmaxEngine();
     hintEngine->initialize();
     
     // Setup timer
@@ -128,8 +131,17 @@ void MainWindow::onHintButtonClicked()
         hintsRemaining--;
         hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
         
-        // Get hint from AI engine
-        auto [hintRow, hintCol] = hintEngine->getNextMove(state.board, state.currentPlayer);
+        MinmaxHintDisplay hint;
+        try {
+            hint = hintEngine->getHint(state.board, state.currentPlayer);
+        } catch (const std::exception &error) {
+            QMessageBox::warning(this, "Hint", error.what());
+            return;
+        }
+
+        std::cout << hint.json.toStdString() << std::endl;
+
+        auto [hintRow, hintCol] = hint.move;
         
         // Highlight the suggested move on the board
         std::vector<std::pair<int, int>> hintMoves = {{hintRow, hintCol}};
@@ -138,9 +150,10 @@ void MainWindow::onHintButtonClicked()
         // Show hint message
         QString playerColor = (state.currentPlayer == 1) ? "Black" : "White";
         QString message = QString("Hint for %1: Row %2, Column %3")
-                         .arg(playerColor)
-                         .arg(hintRow + 1)
-                         .arg(hintCol + 1);
+                              .arg(playerColor)
+                              .arg(hintRow + 1)
+                              .arg(hintCol + 1);
+        QMessageBox::information(this, "Hint", hint.text);
         
         // TODO: Show message in a dialog or status bar
         // For now, just update the current player label temporarily
@@ -252,7 +265,15 @@ void MainWindow::makeAiMove()
         return;
     }
 
-    auto [row, col] = hintEngine->getNextMove(state.board, state.currentPlayer);
+    std::pair<int, int> move;
+    try {
+        move = hintEngine->getNextMove(state.board, state.currentPlayer);
+    } catch (const std::exception &) {
+        gameManager->makeMove(-1, -1);
+        return;
+    }
+
+    auto [row, col] = move;
     if (row < 0 || col < 0) {
         gameManager->makeMove(-1, -1);
         return;

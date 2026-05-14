@@ -8,7 +8,7 @@
 #include <QTimer>
 #include "boardwidget.h"
 #include "gamemanager.h"
-#include "simplehintengine.h"
+#include "minmaxengine.h"
 
 class MainWindow : public QMainWindow
 {
@@ -47,7 +47,7 @@ private:
     
     // Game Management
     GameManager *gameManager;
-    SimpleHintEngine *hintEngine;
+    MinmaxEngine *hintEngine;
     int hintsRemaining;
     
     // Timer
