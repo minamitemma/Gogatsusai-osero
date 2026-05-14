@@ -55,10 +55,15 @@ void BoardWidget::paintEvent(QPaintEvent *event)
             
             if (board[row][col] == 1) {
                 // Black stone
-                painter.fillEllipse(x - radius, y - radius, radius * 2, radius * 2, Qt::black);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(Qt::black);
+                painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2);
             } else if (board[row][col] == 2) {
                 // White stone
-                painter.fillEllipse(x - radius, y - radius, radius * 2, radius * 2, Qt::white);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(Qt::white);
+                painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2);
+                painter.setPen(Qt::black);
                 painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2);
             }
         }

@@ -31,6 +31,9 @@ private:
     void startTimer();
     void stopTimer();
     void resetTimer();
+    bool isAiTurn(const GameState &state) const;
+    void scheduleAiMove();
+    void makeAiMove();
     
     // UI Components
     BoardWidget *boardWidget;
@@ -51,6 +54,7 @@ private:
     QTimer *gameTimer;
     int timeRemaining;
     bool isTimerActive;
+    bool aiMovePending;
 };
 
 #endif // MAINWINDOW_H

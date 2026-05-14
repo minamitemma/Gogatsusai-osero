@@ -6,7 +6,7 @@
 #include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), hintsRemaining(3), timeRemaining(10), isTimerActive(false)
+    : QMainWindow(parent), hintsRemaining(3), timeRemaining(10), isTimerActive(false), aiMovePending(false)
 {
     setupUI();
     gameManager = new GameManager(this);
@@ -88,6 +88,7 @@ void MainWindow::setupUI()
     resetButton = new QPushButton("New Game", this);
     connect(resetButton, &QPushButton::clicked, this, [this]() {
         hintsRemaining = 3;
+        aiMovePending = false;
         hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
         stopTimer();
         gameManager->initializeGame();
@@ -104,28 +105,28 @@ void MainWindow::setupUI()
 
 void MainWindow::onBoardClicked(int row, int col)
 {
+    GameState state = gameManager->getGameState();
+    if (state.gameOver || isAiTurn(state)) {
+        return;
+    }
+
     if (isTimerActive) {
         stopTimer();
     }
     
     gameManager->makeMove(row, col);
-    
-    // Start timer for next player if game is not over
-    GameState state = gameManager->getGameState();
-    if (!state.gameOver) {
-        resetTimer();
-        startTimer();
-    }
 }
 
 void MainWindow::onHintButtonClicked()
 {
+    GameState state = gameManager->getGameState();
+    if (state.gameOver || isAiTurn(state)) {
+        return;
+    }
+
     if (hintsRemaining > 0 && hintEngine) {
         hintsRemaining--;
         hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
-        
-        // Get current game state
-        GameState state = gameManager->getGameState();
         
         // Get hint from AI engine
         auto [hintRow, hintCol] = hintEngine->getNextMove(state.board, state.currentPlayer);
@@ -166,8 +167,14 @@ void MainWindow::onGameStateChanged(const GameState &state)
     if (state.gameOver) {
         stopTimer();
         timerDisplay->display("00");
-    } else if (!isTimerActive) {
-        // Start timer for new turn
+        hintButton->setEnabled(false);
+    } else if (isAiTurn(state)) {
+        stopTimer();
+        hintButton->setEnabled(false);
+        scheduleAiMove();
+    } else {
+        aiMovePending = false;
+        hintButton->setEnabled(hintsRemaining > 0);
         resetTimer();
         startTimer();
     }
@@ -188,7 +195,7 @@ void MainWindow::onTimerTimeout()
         stopTimer();
         
         GameState state = gameManager->getGameState();
-        if (!state.gameOver) {
+        if (!state.gameOver && !isAiTurn(state)) {
             // Auto pass - switch to next player
             gameManager->makeMove(-1, -1); // Special move to pass
         }
@@ -219,6 +226,39 @@ void MainWindow::resetTimer()
     stopTimer();
     timeRemaining = 10;
     timerDisplay->display("10");
+}
+
+bool MainWindow::isAiTurn(const GameState &state) const
+{
+    return state.currentPlayer == 2;
+}
+
+void MainWindow::scheduleAiMove()
+{
+    if (aiMovePending) {
+        return;
+    }
+
+    aiMovePending = true;
+    QTimer::singleShot(500, this, &MainWindow::makeAiMove);
+}
+
+void MainWindow::makeAiMove()
+{
+    aiMovePending = false;
+
+    GameState state = gameManager->getGameState();
+    if (state.gameOver || !isAiTurn(state)) {
+        return;
+    }
+
+    auto [row, col] = hintEngine->getNextMove(state.board, state.currentPlayer);
+    if (row < 0 || col < 0) {
+        gameManager->makeMove(-1, -1);
+        return;
+    }
+
+    gameManager->makeMove(row, col);
 }
 
 void MainWindow::updateGameInfo()
