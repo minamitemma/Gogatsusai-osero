@@ -28,7 +28,10 @@ void BoardWidget::setValidMoves(const std::vector<std::pair<int, int>> &moves)
 
 void BoardWidget::paintEvent(QPaintEvent *event)
 {
+    Q_UNUSED(event);
+
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, true);
     
     int cellSize = getCellSize();
     int boardPixelSize = cellSize * BOARD_SIZE;
@@ -36,10 +39,13 @@ void BoardWidget::paintEvent(QPaintEvent *event)
     int yOffset = (height() - boardPixelSize) / 2;
     
     // Draw board background
-    painter.fillRect(xOffset, yOffset, boardPixelSize, boardPixelSize, Qt::green);
+    painter.fillRect(rect(), QColor("#f6efe4"));
+    painter.setPen(QPen(QColor("#1c4d3b"), 4));
+    painter.setBrush(QColor("#2f9f6b"));
+    painter.drawRoundedRect(xOffset, yOffset, boardPixelSize, boardPixelSize, 10, 10);
     
     // Draw grid lines
-    painter.setPen(QPen(Qt::black, 2));
+    painter.setPen(QPen(QColor("#174735"), 2));
     for (int i = 0; i <= BOARD_SIZE; ++i) {
         int pos = i * cellSize;
         painter.drawLine(xOffset + pos, yOffset, xOffset + pos, yOffset + boardPixelSize);
@@ -55,27 +61,31 @@ void BoardWidget::paintEvent(QPaintEvent *event)
             
             if (board[row][col] == 1) {
                 // Black stone
-                painter.setPen(Qt::NoPen);
-                painter.setBrush(Qt::black);
+                painter.setPen(QPen(QColor("#111111"), 2));
+                painter.setBrush(QColor("#202020"));
                 painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(QColor(255, 255, 255, 45));
+                painter.drawEllipse(x - radius / 2, y - radius / 2, radius / 2, radius / 2);
             } else if (board[row][col] == 2) {
                 // White stone
+                painter.setPen(QPen(QColor("#d8d2c6"), 2));
+                painter.setBrush(QColor("#fffdf5"));
+                painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2);
                 painter.setPen(Qt::NoPen);
-                painter.setBrush(Qt::white);
-                painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2);
-                painter.setPen(Qt::black);
-                painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2);
+                painter.setBrush(QColor(80, 80, 80, 30));
+                painter.drawEllipse(x - radius / 3, y - radius / 3, radius / 2, radius / 2);
             }
         }
     }
     
     // Draw valid move indicators
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(255, 255, 0, 100)); // Yellow with transparency
+    painter.setPen(QPen(QColor("#9c6a00"), 2));
+    painter.setBrush(QColor(255, 203, 69, 150));
     for (const auto &move : validMoves) {
         int x = xOffset + move.second * cellSize + cellSize / 2;
         int y = yOffset + move.first * cellSize + cellSize / 2;
-        painter.drawEllipse(x - 5, y - 5, 10, 10);
+        painter.drawEllipse(x - 8, y - 8, 16, 16);
     }
 }
 
