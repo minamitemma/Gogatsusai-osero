@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QComboBox>
 #include <QLabel>
 #include <QPushButton>
 #include <QLCDNumber>
@@ -34,10 +35,12 @@ private:
         int score;
         int blackCount;
         int whiteCount;
+        int playerSide;
         QString playedAt;
     };
 
     void setupUI();
+    void startNewGame();
     void updateGameInfo();
     void startTimer();
     void stopTimer();
@@ -51,6 +54,7 @@ private:
     void saveRanking(const RankingEntry &entry);
     QVector<RankingEntry> loadRankings() const;
     QString rankingFilePath() const;
+    QString playerSideName() const;
     
     // UI Components
     BoardWidget *boardWidget;
@@ -60,6 +64,7 @@ private:
     QLCDNumber *timerDisplay;
     QPushButton *hintButton;
     QPushButton *resetButton;
+    QComboBox *sideComboBox;
     QLabel *avatarLabel;
     QLabel *statusLabel;
     QTextEdit *hintTextDisplay;
@@ -69,6 +74,7 @@ private:
     GameManager *gameManager;
     MinmaxEngine *hintEngine;
     int hintsRemaining;
+    int humanPlayer;
     
     // Timer
     QTimer *gameTimer;

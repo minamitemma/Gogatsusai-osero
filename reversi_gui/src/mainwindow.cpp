@@ -20,7 +20,10 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
+      gameManager(nullptr),
+      hintEngine(nullptr),
       hintsRemaining(3),
+      humanPlayer(1),
       timeRemaining(10),
       isTimerActive(false),
       aiMovePending(false),
@@ -40,9 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(hintButton, &QPushButton::clicked, this, &MainWindow::onHintButtonClicked);
     connect(gameManager, &GameManager::gameStateChanged, this, &MainWindow::onGameStateChanged);
     
-    // Initialize game
-    gameManager->initializeGame();
-    resetTimer();
+    startNewGame();
 }
 
 MainWindow::~MainWindow()
@@ -69,6 +70,7 @@ void MainWindow::setupUI()
         "padding: 10px 16px; font-weight: 700; }"
         "QPushButton:hover { background: #ffd86b; }"
         "QPushButton:disabled { background: #d6d0c4; border-color: #aaa397; color: #706a60; }"
+        "QComboBox { background: #ffffff; border: 2px solid #2f7d5c; border-radius: 8px; padding: 8px; font-weight: 700; }"
         "QTextEdit { background: #ffffff; border: 2px solid #2f7d5c; border-radius: 8px; padding: 8px; }"
         "QLCDNumber { background: #26322d; color: #ffcb45; border: 3px solid #ffcb45; border-radius: 8px; }"
     );
@@ -123,6 +125,19 @@ void MainWindow::setupUI()
     avatarLabel->setFixedSize(60, 60);
     avatarLabel->setAlignment(Qt::AlignCenter);
     controlLayout->addWidget(avatarLabel);
+
+    QLabel *sideLabel = new QLabel("Play as", this);
+    sideLabel->setStyleSheet("font-weight: 800; background: transparent;");
+    controlLayout->addWidget(sideLabel);
+
+    sideComboBox = new QComboBox(this);
+    sideComboBox->addItem("Black (First)", 1);
+    sideComboBox->addItem("White (Second)", 2);
+    connect(sideComboBox, &QComboBox::currentIndexChanged, this, [this]() {
+        humanPlayer = sideComboBox->currentData().toInt();
+        startNewGame();
+    });
+    controlLayout->addWidget(sideComboBox);
     
     // Hint Button
     hintButton = new QPushButton("Hint (3/3)", this);
@@ -131,15 +146,7 @@ void MainWindow::setupUI()
     // Reset Button
     resetButton = new QPushButton("New Game", this);
     connect(resetButton, &QPushButton::clicked, this, [this]() {
-        hintsRemaining = 3;
-        aiMovePending = false;
-        rankingRecorded = false;
-        hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
-        hintTextDisplay->setPlainText("ヒントボタンを押すと、min-max のおすすめ手がここに表示されます。");
-        statusLabel->setText("New game started. You are black.");
-        stopTimer();
-        gameManager->initializeGame();
-        resetTimer();
+        startNewGame();
     });
     controlLayout->addWidget(resetButton);
     
@@ -175,6 +182,22 @@ void MainWindow::setupUI()
     
     setCentralWidget(centralWidget);
     resize(720, 960);
+}
+
+void MainWindow::startNewGame()
+{
+    hintsRemaining = 3;
+    aiMovePending = false;
+    rankingRecorded = false;
+    hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
+    hintTextDisplay->setPlainText("ヒントボタンを押すと、min-max のおすすめ手がここに表示されます。");
+    statusLabel->setText(QString("New game started. You are %1.").arg(playerSideName()));
+    stopTimer();
+    resetTimer();
+
+    if (gameManager) {
+        gameManager->initializeGame();
+    }
 }
 
 void MainWindow::onBoardClicked(int row, int col)
@@ -313,7 +336,7 @@ void MainWindow::resetTimer()
 
 bool MainWindow::isAiTurn(const GameState &state) const
 {
-    return state.currentPlayer == 2;
+    return state.currentPlayer != humanPlayer;
 }
 
 void MainWindow::scheduleAiMove()
@@ -375,7 +398,9 @@ void MainWindow::handleGameOver(const GameState &state)
     }
 
     rankingRecorded = true;
-    const int score = state.blackCount - state.whiteCount;
+    const int playerCount = humanPlayer == 1 ? state.blackCount : state.whiteCount;
+    const int aiCount = humanPlayer == 1 ? state.whiteCount : state.blackCount;
+    const int score = playerCount - aiCount;
     const QString result = score >= 0
                                ? QString("Your score: +%1").arg(score)
                                : QString("Your score: %1").arg(score);
@@ -384,7 +409,9 @@ void MainWindow::handleGameOver(const GameState &state)
     QString name = QInputDialog::getText(
         this,
         "Register Score",
-        QString("Game over! %1\nEnter your name:").arg(result),
+        QString("Game over! You were %1. %2\nEnter your name:")
+            .arg(playerSideName())
+            .arg(result),
         QLineEdit::Normal,
         "Player",
         &ok
@@ -402,6 +429,7 @@ void MainWindow::handleGameOver(const GameState &state)
         score,
         state.blackCount,
         state.whiteCount,
+        humanPlayer,
         QDateTime::currentDateTime().toString(Qt::ISODate)
     });
     updateRankingDisplay();
@@ -421,7 +449,7 @@ void MainWindow::updateRankingDisplay()
 
     QString text;
     text += "Rank  Name              Score   Stones\n";
-    text += "--------------------------------------\n";
+    text += "----------------------------------------\n";
 
     const int limit = std::min(10, static_cast<int>(rankings.size()));
     for (int i = 0; i < limit; ++i) {
@@ -429,12 +457,14 @@ void MainWindow::updateRankingDisplay()
         const QString scoreText = entry.score >= 0
                                       ? QString("+%1").arg(entry.score)
                                       : QString::number(entry.score);
-        text += QString("%1    %2 %3   B%4-W%5\n")
+        const int playerCount = entry.playerSide == 2 ? entry.whiteCount : entry.blackCount;
+        const int aiCount = entry.playerSide == 2 ? entry.blackCount : entry.whiteCount;
+        text += QString("%1    %2 %3   P%4-A%5\n")
                     .arg(i + 1, 2)
                     .arg(entry.name.left(16).leftJustified(16, ' '))
                     .arg(scoreText.rightJustified(5, ' '))
-                    .arg(entry.blackCount)
-                    .arg(entry.whiteCount);
+                    .arg(playerCount)
+                    .arg(aiCount);
     }
 
     if (rankings.empty()) {
@@ -460,6 +490,7 @@ void MainWindow::saveRanking(const RankingEntry &entry)
         object["score"] = ranking.score;
         object["blackCount"] = ranking.blackCount;
         object["whiteCount"] = ranking.whiteCount;
+        object["playerSide"] = ranking.playerSide;
         object["playedAt"] = ranking.playedAt;
         array.append(object);
     }
@@ -498,10 +529,16 @@ QVector<MainWindow::RankingEntry> MainWindow::loadRankings() const
             object.value("score").toInt(),
             object.value("blackCount").toInt(),
             object.value("whiteCount").toInt(),
+            object.value("playerSide").toInt(1),
             object.value("playedAt").toString()
         });
     }
     return rankings;
+}
+
+QString MainWindow::playerSideName() const
+{
+    return humanPlayer == 1 ? "Black" : "White";
 }
 
 QString MainWindow::rankingFilePath() const
@@ -530,7 +567,10 @@ void MainWindow::updateGameInfo()
         }
         playerText = winner;
     } else {
-        playerText = QString("Current Player: %1").arg((state.currentPlayer == 1) ? "Black" : "White");
+        const QString sideName = state.currentPlayer == 1 ? "Black" : "White";
+        playerText = isAiTurn(state)
+                         ? QString("AI thinking: %1").arg(sideName)
+                         : QString("Your turn: %1").arg(sideName);
     }
     currentPlayerLabel->setText(playerText);
     
@@ -540,15 +580,17 @@ void MainWindow::updateGameInfo()
     
     // Update avatar based on the same evaluator used by the min-max engine.
     if (state.gameOver) {
-        if (state.blackCount > state.whiteCount) {
-            avatarLabel->setText("🏆"); // Black wins
-        } else if (state.whiteCount > state.blackCount) {
-            avatarLabel->setText("🏆"); // White wins
+        const int playerCount = humanPlayer == 1 ? state.blackCount : state.whiteCount;
+        const int aiCount = humanPlayer == 1 ? state.whiteCount : state.blackCount;
+        if (playerCount > aiCount) {
+            avatarLabel->setText("🏆"); // Player wins
+        } else if (aiCount > playerCount) {
+            avatarLabel->setText("😢"); // AI wins
         } else {
             avatarLabel->setText("🤝"); // Draw
         }
     } else {
-        const int evaluation = hintEngine ? hintEngine->evaluatePosition(state.board, 1) : 0;
+        const int evaluation = hintEngine ? hintEngine->evaluatePosition(state.board, humanPlayer) : 0;
         if (evaluation > 60) {
             avatarLabel->setText("😄"); // Black is winning
         } else if (evaluation < -60) {
