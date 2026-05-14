@@ -29,6 +29,8 @@ std::string loadPromptTemplate()
 	    "prompt.txt",
 	    "../prompt.txt",
 	    "osero_6x6/prompt.txt",
+	    "../osero_6x6/prompt.txt",
+	    "../../osero_6x6/prompt.txt",
 	};
 
 	for (const auto path : paths) {

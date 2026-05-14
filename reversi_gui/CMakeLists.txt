@@ -30,10 +30,14 @@ set(PROJECT_SOURCES
     src/simplehintengine.cpp
     src/simplehintengine.h
     ../osero_6x6/board.cpp
+    ../osero_6x6/config/app_config.cpp
     ../osero_6x6/evaluator.cpp
+    ../osero_6x6/hint/gemini_client.cpp
     ../osero_6x6/hint/hint_formatter.cpp
+    ../osero_6x6/hint/llm_hint_engine.cpp
     ../osero_6x6/hint/local_hint_engine.cpp
     ../osero_6x6/hint/minmax_hint_evaluator.cpp
+    ../osero_6x6/hint/prompt_builder.cpp
     resources/resources.qrc
 )
 

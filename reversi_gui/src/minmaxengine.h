@@ -7,6 +7,7 @@
 #include <string>
 
 #include "board.hpp"
+#include "hint/hint_types.hpp"
 
 struct MinmaxHintDisplay
 {
@@ -40,6 +41,11 @@ public:
         int player
     );
 
+    MinmaxHintDisplay getLlmHint(
+        const std::vector<std::vector<int>> &board,
+        int player
+    );
+
     int evaluatePosition(
         const std::vector<std::vector<int>> &board,
         int player
@@ -49,6 +55,12 @@ public:
     void shutdown() override;
 
 private:
+    MinmaxHintDisplay formatHintDisplay(
+        const reversi::HintResult &hint,
+        reversi::Side side,
+        const QString &label
+    ) const;
+
     reversi::Board convertBoard(const std::vector<std::vector<int>> &board) const;
     reversi::Side convertSide(int player) const;
     QString formatMove(reversi::CellPosition move) const;

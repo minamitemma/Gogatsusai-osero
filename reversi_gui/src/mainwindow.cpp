@@ -8,10 +8,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMetaObject>
 #include <QRandomGenerator>
 #include <QSizePolicy>
 #include <QStandardPaths>
 #include <QTextStream>
+#include <QThread>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -28,7 +30,10 @@ MainWindow::MainWindow(QWidget *parent)
       timeRemaining(10),
       isTimerActive(false),
       aiMovePending(false),
-      rankingRecorded(false)
+      rankingRecorded(false),
+      hintPending(false),
+      hintLoadingTimer(nullptr),
+      hintLoadingDots(0)
 {
     setupUI();
     gameManager = new GameManager(this);
@@ -38,6 +43,10 @@ MainWindow::MainWindow(QWidget *parent)
     // Setup timer
     gameTimer = new QTimer(this);
     connect(gameTimer, &QTimer::timeout, this, &MainWindow::onTimerTimeout);
+
+    hintLoadingTimer = new QTimer(this);
+    hintLoadingTimer->setInterval(250);
+    connect(hintLoadingTimer, &QTimer::timeout, this, &MainWindow::onHintLoadingTick);
     
     // Connect signals
     connect(boardWidget, &BoardWidget::cellClicked, this, &MainWindow::onBoardClicked);
@@ -186,7 +195,7 @@ void MainWindow::setupUI()
     hintTextDisplay->setMinimumHeight(190);
     hintTextDisplay->setHtml(
         "<div style='font-size: 16px; color: #4b5a51;'>"
-        "ヒントボタンを押すと、min-max のおすすめ手・評価値・候補手ランキングがここに表示されます。"
+        "ヒントボタンを押すと、Gemini による解説と min-max のおすすめ手・候補手ランキングがここに表示されます。"
         "</div>"
     );
     hintLayout->addWidget(hintTextDisplay);
@@ -216,10 +225,16 @@ void MainWindow::startNewGame()
     hintsRemaining = 3;
     aiMovePending = false;
     rankingRecorded = false;
+    hintPending = false;
+    hintLoadingDots = 0;
+    if (hintLoadingTimer) {
+        hintLoadingTimer->stop();
+    }
     hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
+    hintButton->setEnabled(true);
     hintTextDisplay->setHtml(
         "<div style='font-size: 16px; color: #4b5a51;'>"
-        "ヒントボタンを押すと、min-max のおすすめ手・評価値・候補手ランキングがここに表示されます。"
+        "ヒントボタンを押すと、Gemini による解説と min-max のおすすめ手・候補手ランキングがここに表示されます。"
         "</div>"
     );
     statusLabel->setText(QString("New game started. You are %1.").arg(playerSideName()));
@@ -234,7 +249,7 @@ void MainWindow::startNewGame()
 void MainWindow::onBoardClicked(int row, int col)
 {
     GameState state = gameManager->getGameState();
-    if (state.gameOver || isAiTurn(state)) {
+    if (state.gameOver || isAiTurn(state) || hintPending) {
         return;
     }
 
@@ -248,53 +263,99 @@ void MainWindow::onBoardClicked(int row, int col)
 void MainWindow::onHintButtonClicked()
 {
     GameState state = gameManager->getGameState();
-    if (state.gameOver || isAiTurn(state)) {
+    if (state.gameOver || isAiTurn(state) || hintPending) {
         return;
     }
 
     if (hintsRemaining > 0 && hintEngine) {
         hintsRemaining--;
         hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
-        
-        MinmaxHintDisplay hint;
-        try {
-            hint = hintEngine->getHint(state.board, state.currentPlayer);
-        } catch (const std::exception &error) {
-            hintTextDisplay->setHtml(
-                QString("<div style='color: #b9442f; font-weight: 800;'>ヒントを作れませんでした</div>"
-                        "<div>%1</div>").arg(QString(error.what()).toHtmlEscaped())
-            );
-            return;
-        }
+        hintButton->setEnabled(false);
+        hintPending = true;
+        hintLoadingDots = 0;
+        hintTextDisplay->setHtml("<div style='font-weight: 900; color: #1f5f49;'>ちょっと待ってね・</div>");
+        statusLabel->setText("Gemini にヒントを問い合わせています。");
+        hintLoadingTimer->start();
 
-        std::cout << hint.json.toStdString() << std::endl;
-
-        auto [hintRow, hintCol] = hint.move;
-        
-        // Highlight the suggested move on the board
-        std::vector<std::pair<int, int>> hintMoves = {{hintRow, hintCol}};
-        boardWidget->setValidMoves(hintMoves);
-        
-        // Show hint message
-        QString playerColor = (state.currentPlayer == 1) ? "Black" : "White";
-        QString message = QString("Hint for %1: Row %2, Column %3")
-                              .arg(playerColor)
-                              .arg(hintRow + 1)
-                              .arg(hintCol + 1);
-        hintTextDisplay->setHtml(hint.text);
-        statusLabel->setText(QString("Hint: Row %1, Column %2").arg(hintRow + 1).arg(hintCol + 1));
-        
-        QString originalText = currentPlayerLabel->text();
-        currentPlayerLabel->setText(message);
-        
-        // Reset after 3 seconds
-        QTimer::singleShot(3000, [this, originalText]() {
-            currentPlayerLabel->setText(originalText);
-            // Reset valid moves display
-            GameState currentState = gameManager->getGameState();
-            boardWidget->setValidMoves(currentState.validMoves);
+        const auto board = state.board;
+        const int player = state.currentPlayer;
+        QThread *worker = QThread::create([this, board, player]() {
+            try {
+                const MinmaxHintDisplay hint = hintEngine->getLlmHint(board, player);
+                QMetaObject::invokeMethod(this, [this, hint]() {
+                    showHintResult(hint);
+                }, Qt::QueuedConnection);
+            } catch (const std::exception &error) {
+                const QString message = QString::fromUtf8(error.what());
+                QMetaObject::invokeMethod(this, [this, message]() {
+                    showHintError(message);
+                }, Qt::QueuedConnection);
+            }
         });
+        connect(worker, &QThread::finished, worker, &QObject::deleteLater);
+        worker->start();
     }
+}
+
+void MainWindow::onHintLoadingTick()
+{
+    if (!hintPending) {
+        return;
+    }
+
+    hintLoadingDots = hintLoadingDots % 6 + 1;
+    QString dots;
+    for (int i = 0; i < hintLoadingDots; ++i) {
+        dots += "・";
+    }
+    hintTextDisplay->setHtml(
+        QString("<div style='font-weight: 900; color: #1f5f49;'>ちょっと待ってね%1</div>").arg(dots)
+    );
+}
+
+void MainWindow::showHintResult(const MinmaxHintDisplay &hint)
+{
+    hintPending = false;
+    hintLoadingTimer->stop();
+    hintButton->setEnabled(hintsRemaining > 0);
+
+    std::cout << hint.json.toStdString() << std::endl;
+
+    auto [hintRow, hintCol] = hint.move;
+    std::vector<std::pair<int, int>> hintMoves = {{hintRow, hintCol}};
+    boardWidget->setValidMoves(hintMoves);
+
+    GameState state = gameManager->getGameState();
+    QString playerColor = (state.currentPlayer == 1) ? "Black" : "White";
+    QString message = QString("Gemini hint for %1: Row %2, Column %3")
+                          .arg(playerColor)
+                          .arg(hintRow + 1)
+                          .arg(hintCol + 1);
+    hintTextDisplay->setHtml(hint.text);
+    statusLabel->setText(QString("Hint: Row %1, Column %2").arg(hintRow + 1).arg(hintCol + 1));
+
+    QString originalText = currentPlayerLabel->text();
+    currentPlayerLabel->setText(message);
+
+    QTimer::singleShot(3000, [this, originalText]() {
+        currentPlayerLabel->setText(originalText);
+        GameState currentState = gameManager->getGameState();
+        boardWidget->setValidMoves(currentState.validMoves);
+    });
+}
+
+void MainWindow::showHintError(const QString &message)
+{
+    hintPending = false;
+    hintLoadingTimer->stop();
+    ++hintsRemaining;
+    hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
+    hintButton->setEnabled(hintsRemaining > 0);
+    hintTextDisplay->setHtml(
+        QString("<div style='color: #b9442f; font-weight: 800;'>ヒントを作れませんでした</div>"
+                "<div>%1</div>").arg(message.toHtmlEscaped())
+    );
+    statusLabel->setText("Gemini hint failed. Check GEMINI_API_KEY.");
 }
 
 void MainWindow::onGameStateChanged(const GameState &state)
@@ -315,7 +376,7 @@ void MainWindow::onGameStateChanged(const GameState &state)
         scheduleAiMove();
     } else {
         aiMovePending = false;
-        hintButton->setEnabled(hintsRemaining > 0);
+        hintButton->setEnabled(hintsRemaining > 0 && !hintPending);
         resetTimer();
         startTimer();
     }

@@ -3,8 +3,10 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "config/app_config.hpp"
 #include "evaluator.hpp"
 #include "hint/hint_formatter.hpp"
+#include "hint/llm_hint_engine.hpp"
 #include "hint/local_hint_engine.hpp"
 
 MinmaxEngine::MinmaxEngine()
@@ -52,12 +54,34 @@ MinmaxHintDisplay MinmaxEngine::getHint(
     const reversi::Side side = convertSide(player);
     const reversi::HintResult hint = engine.getHint(convertBoard(board), side);
 
+    return formatHintDisplay(hint, side, "MIN-MAX HINT");
+}
+
+MinmaxHintDisplay MinmaxEngine::getLlmHint(
+    const std::vector<std::vector<int>> &board,
+    int player
+)
+{
+    reversi::GeminiClient geminiClient(reversi::getGeminiApiKey(), reversi::getGeminiModelName());
+    reversi::LlmHintEngine engine(geminiClient);
+    const reversi::Side side = convertSide(player);
+    const reversi::HintResult hint = engine.getHint(convertBoard(board), side);
+
+    return formatHintDisplay(hint, side, "GEMINI HINT");
+}
+
+MinmaxHintDisplay MinmaxEngine::formatHintDisplay(
+    const reversi::HintResult &hint,
+    reversi::Side side,
+    const QString &label
+) const
+{
     const QString bestMove = formatMove(hint.best_move);
     const QString scoreColor = hint.evaluation_score >= 0 ? "#1f7a4d" : "#b9442f";
 
     QString text;
     text += "<div style='font-family: sans-serif; color: #26322d;'>";
-    text += "<div style='font-size: 13px; font-weight: 700; color: #1f5f49;'>MIN-MAX HINT</div>";
+    text += QString("<div style='font-size: 13px; font-weight: 700; color: #1f5f49;'>%1</div>").arg(label);
     text += QString(
                 "<div style='margin: 6px 0 10px 0;'>"
                 "<span style='font-size: 18px; font-weight: 800;'>おすすめ手</span> "

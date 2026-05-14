@@ -27,6 +27,7 @@ private slots:
     void onGameStateChanged(const GameState &state);
     void onTimerTick();
     void onTimerTimeout();
+    void onHintLoadingTick();
 
 private:
     struct RankingEntry
@@ -50,6 +51,8 @@ private:
     void makeAiMove();
     void makeRandomPlayerMove();
     void handleGameOver(const GameState &state);
+    void showHintResult(const MinmaxHintDisplay &hint);
+    void showHintError(const QString &message);
     void updateRankingDisplay();
     void saveRanking(const RankingEntry &entry);
     QVector<RankingEntry> loadRankings() const;
@@ -82,6 +85,9 @@ private:
     bool isTimerActive;
     bool aiMovePending;
     bool rankingRecorded;
+    bool hintPending;
+    QTimer *hintLoadingTimer;
+    int hintLoadingDots;
 };
 
 #endif // MAINWINDOW_H
