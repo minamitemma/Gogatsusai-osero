@@ -26,6 +26,18 @@ void BoardWidget::setValidMoves(const std::vector<std::pair<int, int>> &moves)
     update(); // Trigger repaint
 }
 
+void BoardWidget::setHintMove(const std::pair<int, int> &move)
+{
+    hintMove = move;
+    update();
+}
+
+void BoardWidget::clearHintMove()
+{
+    hintMove.reset();
+    update();
+}
+
 void BoardWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
@@ -86,6 +98,17 @@ void BoardWidget::paintEvent(QPaintEvent *event)
         int x = xOffset + move.second * cellSize + cellSize / 2;
         int y = yOffset + move.first * cellSize + cellSize / 2;
         painter.drawEllipse(x - 8, y - 8, 16, 16);
+    }
+
+    if (hintMove.has_value()) {
+        const auto [row, col] = hintMove.value();
+        if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
+            const int x = xOffset + col * cellSize;
+            const int y = yOffset + row * cellSize;
+            painter.setPen(QPen(QColor("#ffcb45"), 5));
+            painter.setBrush(QColor(255, 203, 69, 70));
+            painter.drawRoundedRect(x + 4, y + 4, cellSize - 8, cellSize - 8, 8, 8);
+        }
     }
 }
 

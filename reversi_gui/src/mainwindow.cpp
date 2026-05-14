@@ -244,6 +244,7 @@ void MainWindow::startNewGame()
     if (gameManager) {
         gameManager->initializeGame();
     }
+    boardWidget->clearHintMove();
 }
 
 void MainWindow::onBoardClicked(int row, int col)
@@ -320,15 +321,11 @@ void MainWindow::showHintResult(const MinmaxHintDisplay &hint)
     hintLoadingTimer->stop();
     hintButton->setEnabled(hintsRemaining > 0);
     GameState state = gameManager->getGameState();
-    if (!state.gameOver && !isAiTurn(state)) {
-        startTimer();
-    }
 
     std::cout << hint.json.toStdString() << std::endl;
 
     auto [hintRow, hintCol] = hint.move;
-    std::vector<std::pair<int, int>> hintMoves = {{hintRow, hintCol}};
-    boardWidget->setValidMoves(hintMoves);
+    boardWidget->setHintMove({hintRow, hintCol});
 
     QString playerColor = (state.currentPlayer == 1) ? "Black" : "White";
     QString message = QString("Gemini hint for %1: Row %2, Column %3")
@@ -343,8 +340,6 @@ void MainWindow::showHintResult(const MinmaxHintDisplay &hint)
 
     QTimer::singleShot(3000, [this, originalText]() {
         currentPlayerLabel->setText(originalText);
-        GameState currentState = gameManager->getGameState();
-        boardWidget->setValidMoves(currentState.validMoves);
     });
 }
 
@@ -370,6 +365,7 @@ void MainWindow::onGameStateChanged(const GameState &state)
 {
     boardWidget->updateBoard(state.board);
     boardWidget->setValidMoves(state.validMoves);
+    boardWidget->clearHintMove();
     updateGameInfo();
     
     // Handle game over
