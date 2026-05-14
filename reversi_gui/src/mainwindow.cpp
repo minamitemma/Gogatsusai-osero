@@ -273,6 +273,7 @@ void MainWindow::onHintButtonClicked()
         hintButton->setEnabled(false);
         hintPending = true;
         hintLoadingDots = 0;
+        stopTimer();
         hintTextDisplay->setHtml("<div style='font-weight: 900; color: #1f5f49;'>ちょっと待ってね・</div>");
         statusLabel->setText("Gemini にヒントを問い合わせています。");
         hintLoadingTimer->start();
@@ -318,6 +319,10 @@ void MainWindow::showHintResult(const MinmaxHintDisplay &hint)
     hintPending = false;
     hintLoadingTimer->stop();
     hintButton->setEnabled(hintsRemaining > 0);
+    GameState state = gameManager->getGameState();
+    if (!state.gameOver && !isAiTurn(state)) {
+        startTimer();
+    }
 
     std::cout << hint.json.toStdString() << std::endl;
 
@@ -325,7 +330,6 @@ void MainWindow::showHintResult(const MinmaxHintDisplay &hint)
     std::vector<std::pair<int, int>> hintMoves = {{hintRow, hintCol}};
     boardWidget->setValidMoves(hintMoves);
 
-    GameState state = gameManager->getGameState();
     QString playerColor = (state.currentPlayer == 1) ? "Black" : "White";
     QString message = QString("Gemini hint for %1: Row %2, Column %3")
                           .arg(playerColor)
@@ -351,6 +355,10 @@ void MainWindow::showHintError(const QString &message)
     ++hintsRemaining;
     hintButton->setText(QString("Hint (%1/3)").arg(hintsRemaining));
     hintButton->setEnabled(hintsRemaining > 0);
+    GameState state = gameManager->getGameState();
+    if (!state.gameOver && !isAiTurn(state)) {
+        startTimer();
+    }
     hintTextDisplay->setHtml(
         QString("<div style='color: #b9442f; font-weight: 800;'>ヒントを作れませんでした</div>"
                 "<div>%1</div>").arg(message.toHtmlEscaped())
