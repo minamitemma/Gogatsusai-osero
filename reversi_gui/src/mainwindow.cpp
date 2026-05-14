@@ -70,7 +70,7 @@ void MainWindow::setupUI()
         "QPushButton:hover { background: #ffd86b; }"
         "QPushButton:disabled { background: #d6d0c4; border-color: #aaa397; color: #706a60; }"
         "QTextEdit { background: #ffffff; border: 2px solid #2f7d5c; border-radius: 8px; padding: 8px; }"
-        "QLCDNumber { background: #26322d; color: #ffcb45; border-radius: 6px; }"
+        "QLCDNumber { background: #26322d; color: #ffcb45; border: 3px solid #ffcb45; border-radius: 8px; }"
     );
 
     QLabel *titleLabel = new QLabel("6x6 Reversi Challenge", this);
@@ -98,8 +98,11 @@ void MainWindow::setupUI()
     // Timer
     timerDisplay = new QLCDNumber(2, this);
     timerDisplay->setSegmentStyle(QLCDNumber::Flat);
+    timerDisplay->setMinimumSize(120, 72);
     timerDisplay->display("10");
-    infoLayout->addWidget(new QLabel("Time: ", this));
+    QLabel *timeLabel = new QLabel("Time", this);
+    timeLabel->setStyleSheet("font-size: 20px; font-weight: 800; background: transparent;");
+    infoLayout->addWidget(timeLabel);
     infoLayout->addWidget(timerDisplay);
     
     mainLayout->addWidget(infoGroupBox);
