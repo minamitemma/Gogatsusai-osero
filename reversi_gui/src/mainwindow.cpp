@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include <QDateTime>
+#include <QDialog>
 #include <QDir>
 #include <QFile>
 #include <QGroupBox>
@@ -173,7 +174,9 @@ void MainWindow::setupUI()
     // Reset Button
     resetButton = new QPushButton("New Game", this);
     connect(resetButton, &QPushButton::clicked, this, [this]() {
-        startNewGame();
+        if (choosePlayerSide()) {
+            startNewGame();
+        }
     });
     controlLayout->addWidget(resetButton);
     
@@ -226,25 +229,66 @@ void MainWindow::setupUI()
 
 bool MainWindow::choosePlayerSide()
 {
-    QStringList choices;
-    choices << "Black (First)" << "White (Second)";
-
-    bool ok = false;
-    const QString choice = QInputDialog::getItem(
-        this,
-        "Choose Side",
-        "先行・後攻を選んでください:",
-        choices,
-        humanPlayer == 1 ? 0 : 1,
-        false,
-        &ok
+    QDialog dialog(this);
+    dialog.setWindowTitle("先行・後攻の選択");
+    dialog.setModal(true);
+    dialog.setStyleSheet(
+        "QDialog { background: #f3efe6; color: #26322d; }"
+        "QLabel { background: transparent; }"
+        "QPushButton { background: #f6c64c; border: 1px solid #b77a18; border-radius: 8px; "
+        "padding: 10px 18px; font-weight: 800; color: #26322d; min-width: 92px; }"
+        "QPushButton:hover { background: #ffd973; }"
+        "QPushButton:pressed { background: #e8b43c; }"
     );
 
-    if (!ok) {
+    QVBoxLayout *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(24, 22, 24, 20);
+    layout->setSpacing(14);
+
+    QLabel *title = new QLabel("先行・後攻を選んでください", &dialog);
+    title->setStyleSheet("font-size: 22px; font-weight: 900; color: #1f5f49;");
+    title->setAlignment(Qt::AlignCenter);
+    layout->addWidget(title);
+
+    QLabel *description = new QLabel("黒は先行、白は後攻です。選択後に新しい対局を開始します。", &dialog);
+    description->setWordWrap(true);
+    description->setAlignment(Qt::AlignCenter);
+    description->setStyleSheet("font-size: 14px; color: #4b5a51;");
+    layout->addWidget(description);
+
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    buttonLayout->setSpacing(12);
+
+    QPushButton *blackButton = new QPushButton("黒で先行", &dialog);
+    QPushButton *whiteButton = new QPushButton("白で後攻", &dialog);
+    QPushButton *cancelButton = new QPushButton("キャンセル", &dialog);
+    cancelButton->setStyleSheet(
+        "QPushButton { background: #ffffff; border: 1px solid #b8c9bd; border-radius: 8px; "
+        "padding: 10px 18px; font-weight: 800; color: #26322d; min-width: 92px; }"
+        "QPushButton:hover { background: #eef6f0; }"
+    );
+
+    buttonLayout->addWidget(blackButton);
+    buttonLayout->addWidget(whiteButton);
+    buttonLayout->addWidget(cancelButton);
+    layout->addLayout(buttonLayout);
+
+    int selectedSide = 0;
+    connect(blackButton, &QPushButton::clicked, &dialog, [&]() {
+        selectedSide = 1;
+        dialog.accept();
+    });
+    connect(whiteButton, &QPushButton::clicked, &dialog, [&]() {
+        selectedSide = 2;
+        dialog.accept();
+    });
+    connect(cancelButton, &QPushButton::clicked, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted || selectedSide == 0) {
         return false;
     }
 
-    humanPlayer = choice.startsWith("White") ? 2 : 1;
+    humanPlayer = selectedSide;
     const int comboIndex = sideComboBox->findData(humanPlayer);
     if (comboIndex >= 0) {
         sideComboBox->blockSignals(true);
