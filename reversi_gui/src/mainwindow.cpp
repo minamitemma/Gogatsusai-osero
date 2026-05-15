@@ -642,11 +642,7 @@ QString MainWindow::playerSideName() const
 
 QString MainWindow::rankingFilePath() const
 {
-    QString basePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (basePath.isEmpty()) {
-        basePath = QDir::homePath() + "/.reversi_gui";
-    }
-    return QDir(basePath).filePath("rankings.json");
+    return QDir(QDir::homePath() + "/.reversi_gui").filePath("rankings.json");
 }
 
 void MainWindow::updateGameInfo()

@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
@@ -12,19 +13,29 @@ namespace
 
 QString rankingFilePath()
 {
+    return QDir(QDir::homePath() + "/.reversi_gui").filePath("rankings.json");
+}
+
+QString legacyRankingFilePath()
+{
     QString basePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     if (basePath.isEmpty()) {
-        basePath = QDir::homePath() + "/.reversi_gui";
+        return QString();
     }
     return QDir(basePath).filePath("rankings.json");
 }
 
-void resetRankingFile()
+bool removeFileIfExists(const QString &path)
 {
-    const QString path = rankingFilePath();
-    if (QFile::exists(path)) {
-        QFile::remove(path);
+    if (path.isEmpty() || !QFile::exists(path)) {
+        return true;
     }
+    return QFile::remove(path);
+}
+
+bool resetRankingFile()
+{
+    return removeFileIfExists(rankingFilePath()) && removeFileIfExists(legacyRankingFilePath());
 }
 
 } // namespace
@@ -46,8 +57,11 @@ int main(int argc, char *argv[])
     parser.process(app);
 
     if (parser.isSet(resetOption)) {
-        resetRankingFile();
-        QTextStream(stdout) << "Ranking records reset: " << rankingFilePath() << Qt::endl;
+        if (resetRankingFile()) {
+            QTextStream(stdout) << "Ranking records reset: " << rankingFilePath() << Qt::endl;
+        } else {
+            QTextStream(stderr) << "Failed to reset ranking records: " << rankingFilePath() << Qt::endl;
+        }
     }
     
     MainWindow window;
