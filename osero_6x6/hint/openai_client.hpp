@@ -7,11 +7,10 @@
 namespace reversi
 {
 
-class GeminiClient : public LlmClient
+class OpenAiClient : public LlmClient
 {
-	
 public:
-	GeminiClient(std::string api_key, std::string model_name = "gemini-3-flash-preview");
+	OpenAiClient(std::string api_key, std::string model_name = "gpt-5.4-mini");
 
 	virtual std::string generateHint(const std::string& prompt) const override;
 

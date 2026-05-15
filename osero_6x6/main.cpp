@@ -19,6 +19,7 @@
 #include "review/game_record.hpp"
 #include "review/game_reviewer.hpp"
 #include "review/review_formatter.hpp"
+#include "hint/llm_client_factory.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -185,8 +186,7 @@ int main(int argc, char* argv[])
 		try {
 			std::string review_summary;
 			if (command_line_params.review_mode == ReviewMode::LLM) {
-				GeminiClient gemini_client(getGeminiApiKey(), getGeminiModelName());
-				review_summary = reviewer.buildLlmReview(game_record, gemini_client);
+				review_summary = reviewer.buildLlmReview(game_record, *makeConfiguredLlmClient());
 			} else {
 				review_summary = reviewer.buildLocalReview(game_record);
 			}

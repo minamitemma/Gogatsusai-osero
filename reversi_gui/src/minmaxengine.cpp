@@ -3,9 +3,9 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "config/app_config.hpp"
 #include "evaluator.hpp"
 #include "hint/hint_formatter.hpp"
+#include "hint/llm_client_factory.hpp"
 #include "hint/llm_hint_engine.hpp"
 #include "hint/local_hint_engine.hpp"
 
@@ -62,12 +62,11 @@ MinmaxHintDisplay MinmaxEngine::getLlmHint(
     int player
 )
 {
-    reversi::GeminiClient geminiClient(reversi::getGeminiApiKey(), reversi::getGeminiModelName());
-    reversi::LlmHintEngine engine(geminiClient);
+    reversi::LlmHintEngine engine(reversi::makeConfiguredLlmClient());
     const reversi::Side side = convertSide(player);
     const reversi::HintResult hint = engine.getHint(convertBoard(board), side);
 
-    return formatHintDisplay(hint, side, "GEMINI HINT");
+    return formatHintDisplay(hint, side, QString::fromStdString(reversi::configuredLlmProviderLabel()));
 }
 
 MinmaxHintDisplay MinmaxEngine::formatHintDisplay(

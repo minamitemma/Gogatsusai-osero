@@ -6,6 +6,7 @@
 
 #include "config/app_config.hpp"
 #include "hint/hint_formatter.hpp"
+#include "hint/llm_client_factory.hpp"
 #include "hint/llm_hint_engine.hpp"
 #include "hint/local_hint_engine.hpp"
 #include "human_player.hpp"
@@ -38,8 +39,7 @@ void printLocalHint(const Board& board, Side side, HintFormat hint_format)
 void printLlmHint(const Board& board, Side side, HintFormat hint_format)
 {
 	auto future_hint = std::async(std::launch::async, [&board, side]() {
-		GeminiClient gemini_client(getGeminiApiKey(), getGeminiModelName());
-		LlmHintEngine hint_engine(gemini_client);
+		LlmHintEngine hint_engine(makeConfiguredLlmClient());
 		return hint_engine.getHint(board, side);
 	});
 

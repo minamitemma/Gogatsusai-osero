@@ -100,9 +100,9 @@ std::string GameReviewer::buildLocalReview(const GameRecord& record) const
 	return output.str();
 }
 
-std::string GameReviewer::buildLlmReview(const GameRecord& record, const GeminiClient& gemini_client) const
+std::string GameReviewer::buildLlmReview(const GameRecord& record, const LlmClient& llm_client) const
 {
-	return gemini_client.generateHint(m_prompt_builder.build(record));
+	return llm_client.generateHint(m_prompt_builder.build(record));
 }
 
 }  // namespace reversi
