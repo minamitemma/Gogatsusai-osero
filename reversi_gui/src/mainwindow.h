@@ -41,6 +41,7 @@ private:
     };
 
     void setupUI();
+    bool choosePlayerSide();
     void startNewGame();
     void updateGameInfo();
     void startTimer();

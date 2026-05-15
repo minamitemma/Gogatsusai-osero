@@ -53,7 +53,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(hintButton, &QPushButton::clicked, this, &MainWindow::onHintButtonClicked);
     connect(gameManager, &GameManager::gameStateChanged, this, &MainWindow::onGameStateChanged);
     
-    startNewGame();
+    if (choosePlayerSide()) {
+        startNewGame();
+    } else {
+        QTimer::singleShot(0, this, &QWidget::close);
+    }
 }
 
 MainWindow::~MainWindow()
@@ -218,6 +222,36 @@ void MainWindow::setupUI()
     
     setCentralWidget(centralWidget);
     resize(1060, 780);
+}
+
+bool MainWindow::choosePlayerSide()
+{
+    QStringList choices;
+    choices << "Black (First)" << "White (Second)";
+
+    bool ok = false;
+    const QString choice = QInputDialog::getItem(
+        this,
+        "Choose Side",
+        "先行・後攻を選んでください:",
+        choices,
+        humanPlayer == 1 ? 0 : 1,
+        false,
+        &ok
+    );
+
+    if (!ok) {
+        return false;
+    }
+
+    humanPlayer = choice.startsWith("White") ? 2 : 1;
+    const int comboIndex = sideComboBox->findData(humanPlayer);
+    if (comboIndex >= 0) {
+        sideComboBox->blockSignals(true);
+        sideComboBox->setCurrentIndex(comboIndex);
+        sideComboBox->blockSignals(false);
+    }
+    return true;
 }
 
 void MainWindow::startNewGame()
