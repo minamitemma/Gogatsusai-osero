@@ -1,5 +1,6 @@
 #include "config/app_config.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
@@ -49,7 +50,10 @@ std::string getLlmProvider()
 	if (value == nullptr || std::string(value).empty()) {
 		return "gemini";
 	}
-	return value;
+	std::string provider = value;
+	std::transform(provider.begin(), provider.end(), provider.begin(),
+	               [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+	return provider;
 }
 
 }  // namespace reversi

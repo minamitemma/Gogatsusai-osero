@@ -208,10 +208,24 @@ std::string extractStringField(const std::string& response, const std::string& f
 
 std::string extractOutputText(const std::string& response)
 {
+	if (response.find("\"error\"") != std::string::npos) {
+		try {
+			throw std::runtime_error("OpenAI API error: " + extractStringField(response, "message"));
+		} catch (const std::runtime_error& error) {
+			throw error;
+		} catch (const std::exception&) {
+			throw std::runtime_error("OpenAI API error: " + response);
+		}
+	}
+
 	try {
 		return extractStringField(response, "output_text");
 	} catch (const std::exception&) {
-		return extractStringField(response, "text");
+		try {
+			return extractStringField(response, "text");
+		} catch (const std::exception&) {
+			throw std::runtime_error("OpenAI response did not include output text: " + response);
+		}
 	}
 }
 

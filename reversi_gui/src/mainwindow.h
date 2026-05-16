@@ -12,6 +12,7 @@
 #include "boardwidget.h"
 #include "gamemanager.h"
 #include "minmaxengine.h"
+#include "review/game_record.hpp"
 
 class MainWindow : public QMainWindow
 {
@@ -52,6 +53,9 @@ private:
     void makeAiMove();
     void makeRandomPlayerMove();
     void handleGameOver(const GameState &state);
+    void recordMove(const GameState &beforeState, int row, int col);
+    void resetGameRecord();
+    void showGameReview(const QString &playerName, const GameState &state);
     void showHintResult(const MinmaxHintDisplay &hint);
     void showHintError(const QString &message);
     void updateRankingDisplay();
@@ -79,6 +83,8 @@ private:
     MinmaxEngine *hintEngine;
     int hintsRemaining;
     int humanPlayer;
+    reversi::GameRecord gameRecord;
+    int turnNumber;
     
     // Timer
     QTimer *gameTimer;

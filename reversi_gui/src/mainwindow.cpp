@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
+#include <QMessageBox>
 #include <QRandomGenerator>
 #include <QSizePolicy>
 #include <QStandardPaths>
@@ -21,6 +22,87 @@
 #include <algorithm>
 #include <exception>
 #include <iostream>
+#include <utility>
+
+#include "review/game_reviewer.hpp"
+
+namespace
+{
+
+constexpr int BoardSize = 6;
+
+bool isValidMoveInList(const GameState &state, int row, int col)
+{
+    return std::find(state.validMoves.begin(), state.validMoves.end(), std::make_pair(row, col)) != state.validMoves.end();
+}
+
+bool isInside(int row, int col)
+{
+    return row >= 0 && row < BoardSize && col >= 0 && col < BoardSize;
+}
+
+int countFlips(const std::vector<std::vector<int>> &board, int row, int col, int player, int dRow, int dCol)
+{
+    const int opponent = player == 1 ? 2 : 1;
+    int count = 0;
+    int r = row + dRow;
+    int c = col + dCol;
+
+    while (isInside(r, c)) {
+        if (board[static_cast<std::size_t>(r)][static_cast<std::size_t>(c)] == 0) {
+            return 0;
+        }
+        if (board[static_cast<std::size_t>(r)][static_cast<std::size_t>(c)] == opponent) {
+            ++count;
+        } else {
+            return count;
+        }
+        r += dRow;
+        c += dCol;
+    }
+    return 0;
+}
+
+void applyMove(std::vector<std::vector<int>> &board, int row, int col, int player)
+{
+    static constexpr int directions[8][2] = {
+        {-1, -1}, {-1, 0}, {-1, 1},
+        {0, -1},           {0, 1},
+        {1, -1},  {1, 0},  {1, 1}
+    };
+
+    board[static_cast<std::size_t>(row)][static_cast<std::size_t>(col)] = player;
+    for (const auto &dir : directions) {
+        const int flips = countFlips(board, row, col, player, dir[0], dir[1]);
+        for (int i = 1; i <= flips; ++i) {
+            const int r = row + i * dir[0];
+            const int c = col + i * dir[1];
+            board[static_cast<std::size_t>(r)][static_cast<std::size_t>(c)] = player;
+        }
+    }
+}
+
+int countStones(const std::vector<std::vector<int>> &board, int player)
+{
+    int count = 0;
+    for (const auto &row : board) {
+        for (const int cell : row) {
+            if (cell == player) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
+QString htmlEscapeNewlines(const QString &text)
+{
+    QString escaped = text.toHtmlEscaped();
+    escaped.replace("\n", "<br>");
+    return escaped;
+}
+
+} // namespace
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -28,6 +110,7 @@ MainWindow::MainWindow(QWidget *parent)
       hintEngine(nullptr),
       hintsRemaining(3),
       humanPlayer(1),
+      turnNumber(1),
       timeRemaining(10),
       isTimerActive(false),
       aiMovePending(false),
@@ -316,6 +399,7 @@ void MainWindow::startNewGame()
         "</div>"
     );
     statusLabel->setText(QString("New game started. You are %1.").arg(playerSideName()));
+    resetGameRecord();
     stopTimer();
     resetTimer();
 
@@ -335,7 +419,10 @@ void MainWindow::onBoardClicked(int row, int col)
     if (isTimerActive) {
         stopTimer();
     }
-    
+
+    if (isValidMoveInList(state, row, col)) {
+        recordMove(state, row, col);
+    }
     gameManager->makeMove(row, col);
 }
 
@@ -539,16 +626,19 @@ void MainWindow::makeAiMove()
     try {
         move = hintEngine->getNextMove(state.board, state.currentPlayer);
     } catch (const std::exception &) {
+        recordMove(state, -1, -1);
         gameManager->makeMove(-1, -1);
         return;
     }
 
     auto [row, col] = move;
     if (row < 0 || col < 0) {
+        recordMove(state, -1, -1);
         gameManager->makeMove(-1, -1);
         return;
     }
 
+    recordMove(state, row, col);
     gameManager->makeMove(row, col);
 }
 
@@ -556,6 +646,7 @@ void MainWindow::makeRandomPlayerMove()
 {
     GameState state = gameManager->getGameState();
     if (state.gameOver || state.validMoves.empty()) {
+        recordMove(state, -1, -1);
         gameManager->makeMove(-1, -1);
         return;
     }
@@ -565,6 +656,7 @@ void MainWindow::makeRandomPlayerMove()
     statusLabel->setText(QString("Time up! A random move was played: Row %1, Column %2")
                              .arg(row + 1)
                              .arg(col + 1));
+    recordMove(state, row, col);
     gameManager->makeMove(row, col);
 }
 
@@ -610,7 +702,79 @@ void MainWindow::handleGameOver(const GameState &state)
         QDateTime::currentDateTime().toString(Qt::ISODate)
     });
     updateRankingDisplay();
-    statusLabel->setText("Score registered. Check the ranking board.");
+    showGameReview(name, state);
+    statusLabel->setText("Score registered. Review is available in the hint panel.");
+}
+
+void MainWindow::recordMove(const GameState &beforeState, int row, int col)
+{
+    if (!hintEngine) {
+        return;
+    }
+
+    const int player = beforeState.currentPlayer;
+    const int blackEvalBefore = hintEngine->evaluatePosition(beforeState.board, 1);
+    const bool wasPass = (row < 0 || col < 0);
+
+    std::vector<std::vector<int>> afterBoard = beforeState.board;
+    int blackCountAfter = beforeState.blackCount;
+    int whiteCountAfter = beforeState.whiteCount;
+
+    if (!wasPass) {
+        applyMove(afterBoard, row, col, player);
+        blackCountAfter = countStones(afterBoard, 1);
+        whiteCountAfter = countStones(afterBoard, 2);
+    }
+
+    const int blackEvalAfter = hintEngine->evaluatePosition(afterBoard, 1);
+    const int deltaBlack = blackEvalAfter - blackEvalBefore;
+    const int deltaForMover = player == 1 ? deltaBlack : -deltaBlack;
+
+    gameRecord.moves.push_back({
+        turnNumber,
+        player == 1 ? reversi::Side::BLACK : reversi::Side::WHITE,
+        wasPass,
+        wasPass ? reversi::CellPosition{-1, -1} : reversi::CellPosition{col, row},
+        blackEvalBefore,
+        blackEvalAfter,
+        deltaForMover,
+        blackCountAfter,
+        whiteCountAfter
+    });
+    ++turnNumber;
+}
+
+void MainWindow::resetGameRecord()
+{
+    gameRecord = reversi::GameRecord{};
+    gameRecord.has_human_side = true;
+    gameRecord.human_side = humanPlayer == 1 ? reversi::Side::BLACK : reversi::Side::WHITE;
+    turnNumber = 1;
+}
+
+void MainWindow::showGameReview(const QString &playerName, const GameState &state)
+{
+    gameRecord.final_black_count = state.blackCount;
+    gameRecord.final_white_count = state.whiteCount;
+
+    reversi::GameReviewer reviewer;
+    const QString review = QString::fromStdString(reviewer.buildLocalReview(gameRecord));
+    const QString html = QString(
+        "<div style='font-family: sans-serif; color: #26322d;'>"
+        "<div style='font-size: 13px; font-weight: 700; color: #1f5f49;'>GAME REVIEW</div>"
+        "<div style='font-size: 18px; font-weight: 900; margin: 6px 0;'>%1 さんの対局レビュー</div>"
+        "<div style='line-height: 1.55;'>%2</div>"
+        "</div>"
+    ).arg(playerName.toHtmlEscaped(), htmlEscapeNewlines(review));
+
+    hintTextDisplay->setHtml(html);
+
+    QMessageBox reviewBox(this);
+    reviewBox.setWindowTitle("対局レビュー");
+    reviewBox.setText(QString("%1 さんの対局レビュー").arg(playerName));
+    reviewBox.setInformativeText(review);
+    reviewBox.setStandardButtons(QMessageBox::Ok);
+    reviewBox.exec();
 }
 
 void MainWindow::updateRankingDisplay()

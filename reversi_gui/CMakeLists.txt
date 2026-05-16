@@ -40,6 +40,8 @@ set(PROJECT_SOURCES
     ../osero_6x6/hint/minmax_hint_evaluator.cpp
     ../osero_6x6/hint/openai_client.cpp
     ../osero_6x6/hint/prompt_builder.cpp
+    ../osero_6x6/review/game_reviewer.cpp
+    ../osero_6x6/review/review_prompt_builder.cpp
     resources/resources.qrc
 )
 
