@@ -10,7 +10,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
-#include <QMessageBox>
 #include <QRandomGenerator>
 #include <QSizePolicy>
 #include <QStandardPaths>
@@ -674,6 +673,8 @@ void MainWindow::handleGameOver(const GameState &state)
                                ? QString("Your score: +%1").arg(score)
                                : QString("Your score: %1").arg(score);
 
+    showGameReview(state);
+
     bool ok = false;
     QString name = QInputDialog::getText(
         this,
@@ -702,7 +703,6 @@ void MainWindow::handleGameOver(const GameState &state)
         QDateTime::currentDateTime().toString(Qt::ISODate)
     });
     updateRankingDisplay();
-    showGameReview(name, state);
     statusLabel->setText("Score registered. Review is available in the hint panel.");
 }
 
@@ -752,7 +752,7 @@ void MainWindow::resetGameRecord()
     turnNumber = 1;
 }
 
-void MainWindow::showGameReview(const QString &playerName, const GameState &state)
+void MainWindow::showGameReview(const GameState &state)
 {
     gameRecord.final_black_count = state.blackCount;
     gameRecord.final_white_count = state.whiteCount;
@@ -762,19 +762,63 @@ void MainWindow::showGameReview(const QString &playerName, const GameState &stat
     const QString html = QString(
         "<div style='font-family: sans-serif; color: #26322d;'>"
         "<div style='font-size: 13px; font-weight: 700; color: #1f5f49;'>GAME REVIEW</div>"
-        "<div style='font-size: 18px; font-weight: 900; margin: 6px 0;'>%1 さんの対局レビュー</div>"
-        "<div style='line-height: 1.55;'>%2</div>"
+        "<div style='font-size: 18px; font-weight: 900; margin: 6px 0;'>対局レビュー</div>"
+        "<div style='line-height: 1.55;'>%1</div>"
         "</div>"
-    ).arg(playerName.toHtmlEscaped(), htmlEscapeNewlines(review));
+    ).arg(htmlEscapeNewlines(review));
 
     hintTextDisplay->setHtml(html);
 
-    QMessageBox reviewBox(this);
-    reviewBox.setWindowTitle("対局レビュー");
-    reviewBox.setText(QString("%1 さんの対局レビュー").arg(playerName));
-    reviewBox.setInformativeText(review);
-    reviewBox.setStandardButtons(QMessageBox::Ok);
-    reviewBox.exec();
+    QDialog dialog(this);
+    dialog.setWindowTitle("対局レビュー");
+    dialog.setModal(true);
+    dialog.resize(560, 420);
+    dialog.setStyleSheet(
+        "QDialog { background: #f3efe6; color: #26322d; }"
+        "QLabel { background: transparent; }"
+        "QTextEdit { background: #fffdf7; border: 1px solid #c9d6ce; border-radius: 8px; "
+        "padding: 14px; font-size: 15px; }"
+        "QPushButton { background: #f6c64c; border: 1px solid #b77a18; border-radius: 8px; "
+        "padding: 10px 18px; font-weight: 800; color: #26322d; min-width: 120px; }"
+        "QPushButton:hover { background: #ffd973; }"
+        "QPushButton:pressed { background: #e8b43c; }"
+    );
+
+    QVBoxLayout *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(24, 22, 24, 20);
+    layout->setSpacing(12);
+
+    QLabel *title = new QLabel("対局レビュー", &dialog);
+    title->setAlignment(Qt::AlignCenter);
+    title->setStyleSheet("font-size: 24px; font-weight: 900; color: #1f5f49;");
+    layout->addWidget(title);
+
+    QLabel *subtitle = new QLabel(
+        QString("結果: 黒 %1 - 白 %2 / あなたは %3")
+            .arg(state.blackCount)
+            .arg(state.whiteCount)
+            .arg(playerSideName()),
+        &dialog
+    );
+    subtitle->setAlignment(Qt::AlignCenter);
+    subtitle->setStyleSheet("font-size: 15px; font-weight: 800; color: #4b5a51;");
+    layout->addWidget(subtitle);
+
+    QTextEdit *reviewText = new QTextEdit(&dialog);
+    reviewText->setReadOnly(true);
+    reviewText->setHtml(html);
+    layout->addWidget(reviewText, 1);
+
+    QPushButton *okButton = new QPushButton("名前を登録する", &dialog);
+    connect(okButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    buttonLayout->addStretch();
+    buttonLayout->addWidget(okButton);
+    buttonLayout->addStretch();
+    layout->addLayout(buttonLayout);
+
+    dialog.exec();
 }
 
 void MainWindow::updateRankingDisplay()

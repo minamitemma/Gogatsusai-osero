@@ -55,7 +55,7 @@ private:
     void handleGameOver(const GameState &state);
     void recordMove(const GameState &beforeState, int row, int col);
     void resetGameRecord();
-    void showGameReview(const QString &playerName, const GameState &state);
+    void showGameReview(const GameState &state);
     void showHintResult(const MinmaxHintDisplay &hint);
     void showHintError(const QString &message);
     void updateRankingDisplay();
